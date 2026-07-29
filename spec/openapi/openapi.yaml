@@ -1,0 +1,513 @@
+openapi: 3.0.0
+info:
+  title: Booking Calendar API
+  description: |-
+    HTTP API календаря бронирования.
+
+    В системе две условные роли без регистрации и авторизации:
+    - **Владелец календаря** — один заранее заданный профиль. Создаёт типы событий
+      и просматривает единый список предстоящих встреч (ручки с префиксом `/admin`).
+    - **Гость** — бронирует слоты без аккаунта и входа в систему.
+
+    Правило занятости: на одно и то же время нельзя создать две брони,
+    даже если это разные типы событий.
+
+    Окно записи: свободные слоты формируются на 14 дней, начиная с текущей даты.
+    Гость может записаться только на свободный слот из этого окна.
+  version: 0.0.0
+tags:
+  - name: 'Гость: типы событий и слоты'
+  - name: 'Гость: бронирование'
+  - name: 'Владелец: админская часть'
+paths:
+  /admin/bookings/upcoming:
+    get:
+      operationId: Admin_listUpcomingBookings
+      summary: Предстоящие встречи
+      description: |-
+        Единый список предстоящих броней по всем типам событий:
+        брони с `startAt` не раньше текущего момента,
+        отсортированные по возрастанию времени начала.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Booking'
+      tags:
+        - 'Владелец: админская часть'
+  /admin/event-types:
+    post:
+      operationId: Admin_createEventType
+      summary: Создать тип события
+      description: |-
+        Владелец создаёт тип события, задавая `id`, название, описание
+        и длительность в минутах.
+      parameters: []
+      responses:
+        '201':
+          description: The request has succeeded and a new resource has been created as a result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventType'
+        '409':
+          description: Тип события с таким `id` уже существует.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventTypeConflictError'
+        '422':
+          description: |-
+            Запрос не прошёл валидацию: значения полей отсутствуют, имеют неверный
+            формат или нарушают ограничения. Детали по конкретным полям — в `errors`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+      tags:
+        - 'Владелец: админская часть'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEventTypeRequest'
+  /bookings:
+    post:
+      operationId: Bookings_create
+      summary: Создать бронирование
+      description: |-
+        Гость бронирует выбранный свободный слот без создания аккаунта.
+
+        Сервер проверяет:
+        - тип события существует (иначе 404);
+        - `startAt` лежит на сетке слотов этого типа события, внутри окна записи
+          (14 дней от текущей даты) и не в прошлом (иначе 422);
+        - время не пересекается ни с одной существующей бронью любого типа
+          события (иначе 409) — в том числе когда слот заняли, пока гость
+          выбирал: получив 409, фронту следует перезапросить свободные слоты.
+      parameters: []
+      responses:
+        '201':
+          description: The request has succeeded and a new resource has been created as a result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '404':
+          description: Ресурс не найден.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '409':
+          description: |-
+            Время уже занято другой бронью — правило занятости: на одно и то же время
+            нельзя создать две записи, даже если это разные типы событий.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SlotConflictError'
+        '422':
+          description: |-
+            Запрос не прошёл валидацию: значения полей отсутствуют, имеют неверный
+            формат или нарушают ограничения. Детали по конкретным полям — в `errors`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+      tags:
+        - 'Гость: бронирование'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBookingRequest'
+  /event-types:
+    get:
+      operationId: EventTypes_list
+      summary: Список типов событий
+      description: |-
+        Страница с видами брони: гостю доступны название, описание и длительность
+        каждого типа события. Владелец использует этот же список в админской части.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EventType'
+      tags:
+        - 'Гость: типы событий и слоты'
+  /event-types/{eventTypeId}:
+    get:
+      operationId: EventTypes_get
+      summary: Тип события по идентификатору
+      description: Данные одного типа события — для страницы бронирования.
+      parameters:
+        - name: eventTypeId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/EventTypeId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventType'
+        '404':
+          description: Ресурс не найден.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+      tags:
+        - 'Гость: типы событий и слоты'
+  /event-types/{eventTypeId}/slots:
+    get:
+      operationId: EventTypes_listSlots
+      summary: Свободные слоты типа события на 14 дней
+      description: |-
+        Календарь свободных слотов выбранного типа события на 14 дней,
+        начиная с текущей даты. Слоты, время которых пересекается с любой
+        существующей бронью (любого типа события), не возвращаются.
+      parameters:
+        - name: eventTypeId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/EventTypeId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Availability'
+        '404':
+          description: Ресурс не найден.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+      tags:
+        - 'Гость: типы событий и слоты'
+components:
+  schemas:
+    Availability:
+      type: object
+      required:
+        - eventTypeId
+        - slotDurationMinutes
+        - windowStartDate
+        - windowEndDate
+        - days
+      properties:
+        eventTypeId:
+          $ref: '#/components/schemas/EventTypeId'
+        slotDurationMinutes:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 1440
+          description: Длительность одного слота в минутах (равна длительности типа события).
+        windowStartDate:
+          type: string
+          format: date
+          description: Первый день окна записи — текущая дата.
+        windowEndDate:
+          type: string
+          format: date
+          description: Последний день окна записи — текущая дата + 13 дней (всего 14 дней).
+        days:
+          type: array
+          items:
+            $ref: '#/components/schemas/DayAvailability'
+          description: Все 14 дней окна записи по порядку, включая дни без свободных слотов.
+      description: Свободные слоты типа события в окне записи.
+    Booking:
+      type: object
+      required:
+        - id
+        - eventType
+        - startAt
+        - endAt
+        - guestName
+        - guestEmail
+        - createdAt
+      properties:
+        id:
+          $ref: '#/components/schemas/BookingId'
+        eventType:
+          allOf:
+            - $ref: '#/components/schemas/EventType'
+          description: Тип события, к которому относится бронь.
+        startAt:
+          type: string
+          format: date-time
+          description: Начало встречи (UTC).
+        endAt:
+          type: string
+          format: date-time
+          description: 'Конец встречи (UTC): `startAt` + длительность типа события.'
+        guestName:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Имя гостя.
+        guestEmail:
+          type: string
+          maxLength: 320
+          format: email
+          description: Email гостя для связи.
+        comment:
+          type: string
+          maxLength: 1000
+          description: Необязательный комментарий гостя к встрече.
+        createdAt:
+          type: string
+          format: date-time
+          description: Момент создания брони (UTC).
+      description: Созданное бронирование.
+    BookingId:
+      type: string
+      format: uuid
+      description: Идентификатор бронирования. Генерируется сервером (UUID).
+    CreateBookingRequest:
+      type: object
+      required:
+        - eventTypeId
+        - startAt
+        - guestName
+        - guestEmail
+      properties:
+        eventTypeId:
+          allOf:
+            - $ref: '#/components/schemas/EventTypeId'
+          description: Тип события, на который записывается гость.
+        startAt:
+          type: string
+          format: date-time
+          description: |-
+            Начало брони (UTC). Должно точно совпадать со `startAt` одного из свободных
+            слотов, полученных из `GET /event-types/{eventTypeId}/slots`.
+        guestName:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Имя гостя.
+        guestEmail:
+          type: string
+          maxLength: 320
+          format: email
+          description: Email гостя для связи.
+        comment:
+          type: string
+          maxLength: 1000
+          description: Необязательный комментарий гостя к встрече.
+      description: Данные, которые гость передаёт при создании брони.
+    CreateEventTypeRequest:
+      type: object
+      required:
+        - id
+        - name
+        - description
+        - durationMinutes
+      properties:
+        id:
+          $ref: '#/components/schemas/EventTypeId'
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+          description: Название типа события.
+        description:
+          type: string
+          maxLength: 2000
+          description: Описание типа события.
+        durationMinutes:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 1440
+          description: Длительность события в минутах. Определяет длину слота.
+      description: Данные для создания типа события. Все поля задаёт владелец, включая `id`.
+    DayAvailability:
+      type: object
+      required:
+        - date
+        - slots
+      properties:
+        date:
+          type: string
+          format: date
+          description: Календарная дата дня.
+        slots:
+          type: array
+          items:
+            $ref: '#/components/schemas/Slot'
+          description: |-
+            Свободные слоты дня по возрастанию времени начала.
+            Пустой массив — свободных слотов в этот день нет.
+      description: Свободные слоты одного дня.
+    EventType:
+      type: object
+      required:
+        - id
+        - name
+        - description
+        - durationMinutes
+      properties:
+        id:
+          $ref: '#/components/schemas/EventTypeId'
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+          description: Название типа события.
+        description:
+          type: string
+          maxLength: 2000
+          description: Описание типа события.
+        durationMinutes:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 1440
+          description: Длительность события в минутах. Определяет длину слота.
+      description: Тип события, который создаёт владелец календаря.
+    EventTypeConflictError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - event_type_already_exists
+        message:
+          type: string
+      description: Тип события с таким `id` уже существует.
+    EventTypeId:
+      type: string
+      minLength: 1
+      maxLength: 100
+      pattern: ^[a-z0-9]+(-[a-z0-9]+)*$
+      description: |-
+        Идентификатор типа события. Задаётся владельцем при создании
+        (латиница в нижнем регистре, цифры и дефисы), например `intro-call`.
+    FieldError:
+      type: object
+      required:
+        - field
+        - message
+      properties:
+        field:
+          type: string
+          description: Имя поля с ошибкой, например `startAt`.
+        message:
+          type: string
+          description: Описание проблемы с полем.
+      description: Ошибка в одном из полей запроса.
+    GuestInfo:
+      type: object
+      required:
+        - guestName
+        - guestEmail
+      properties:
+        guestName:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Имя гостя.
+        guestEmail:
+          type: string
+          maxLength: 320
+          format: email
+          description: Email гостя для связи.
+        comment:
+          type: string
+          maxLength: 1000
+          description: Необязательный комментарий гостя к встрече.
+      description: Данные гостя, указанные при бронировании.
+    NotFoundError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - not_found
+          description: Машиночитаемый код ошибки.
+        message:
+          type: string
+          description: Человекочитаемое описание ошибки.
+      description: Ресурс не найден.
+    Slot:
+      type: object
+      required:
+        - startAt
+        - endAt
+      properties:
+        startAt:
+          type: string
+          format: date-time
+          description: Начало слота (UTC).
+        endAt:
+          type: string
+          format: date-time
+          description: 'Конец слота (UTC): `startAt` + длительность типа события.'
+      description: Свободный слот для записи.
+    SlotConflictError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - slot_already_booked
+        message:
+          type: string
+      description: |-
+        Время уже занято другой бронью — правило занятости: на одно и то же время
+        нельзя создать две записи, даже если это разные типы событий.
+    ValidationError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - validation_failed
+        message:
+          type: string
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldError'
+          description: Список ошибок по полям.
+      description: |-
+        Запрос не прошёл валидацию: значения полей отсутствуют, имеют неверный
+        формат или нарушают ограничения. Детали по конкретным полям — в `errors`.
+servers:
+  - url: http://localhost:3000/api
+    description: Локальная разработка
+    variables: {}

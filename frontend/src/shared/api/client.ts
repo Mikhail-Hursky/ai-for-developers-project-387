@@ -16,14 +16,11 @@ interface ErrorBody {
   errors?: FieldError[];
 }
 
-export async function apiGet<T>(path: string, init?: RequestInit): Promise<T> {
+async function request<T>(path: string, init: RequestInit): Promise<T> {
   let response: Response;
 
   try {
-    response = await fetch(`${apiBaseUrl}${path}`, {
-      ...init,
-      headers: { Accept: 'application/json', ...init?.headers },
-    });
+    response = await fetch(`${apiBaseUrl}${path}`, init);
   } catch (cause) {
     if (cause instanceof DOMException && cause.name === 'AbortError') {
       throw cause;
@@ -42,4 +39,24 @@ export async function apiGet<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   return (await response.json()) as T;
+}
+
+export async function apiGet<T>(path: string, init?: RequestInit): Promise<T> {
+  return request<T>(path, {
+    ...init,
+    headers: { Accept: 'application/json', ...init?.headers },
+  });
+}
+
+export async function apiPost<T>(path: string, body: unknown, init?: RequestInit): Promise<T> {
+  return request<T>(path, {
+    ...init,
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      ...init?.headers,
+    },
+    body: JSON.stringify(body),
+  });
 }

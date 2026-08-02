@@ -36,6 +36,14 @@ export interface Booking {
   createdAt: string;
 }
 
+export interface CreateBookingRequest {
+  eventTypeId: string;
+  startAt: string;
+  guestName: string;
+  guestEmail: string;
+  comment?: string;
+}
+
 export interface FieldError {
   field: string;
   message: string;

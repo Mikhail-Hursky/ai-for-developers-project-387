@@ -1,12 +1,15 @@
-import { Container, Stack, Text, Title } from '@mantine/core';
+import { Navigate, useParams } from 'react-router';
+
+import { BookingFlow } from '../features/booking/BookingFlow';
 
 export function BookingPage() {
-  return (
-    <Container size="lg" py={80}>
-      <Stack gap="xs" align="flex-start">
-        <Title order={1}>Бронирование</Title>
-        <Text c="dimmed">Скоро: выбор дня, времени и подтверждение записи.</Text>
-      </Stack>
-    </Container>
-  );
+  const { eventTypeId } = useParams();
+
+  if (!eventTypeId) {
+    return <Navigate to="/booking" replace />;
+  }
+
+  // key: при смене типа встречи поток монтируется заново и не тащит
+  // выбранные день и слот от предыдущего типа.
+  return <BookingFlow key={eventTypeId} eventTypeId={eventTypeId} />;
 }

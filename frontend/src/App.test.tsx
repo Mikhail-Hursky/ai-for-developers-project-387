@@ -1,8 +1,19 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { renderApp } from './test/renderApp';
+
+beforeEach(() => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => Response.json([])),
+  );
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe('Навигация', () => {
   it('по клику на «Админка» открывает страницу-заглушку админки', async () => {

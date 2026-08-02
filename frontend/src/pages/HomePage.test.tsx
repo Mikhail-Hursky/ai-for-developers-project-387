@@ -1,7 +1,18 @@
 import { screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { renderApp } from '../test/renderApp';
+
+beforeEach(() => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => Response.json([])),
+  );
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe('HomePage', () => {
   it('показывает заголовок, CTA и три карточки возможностей', () => {

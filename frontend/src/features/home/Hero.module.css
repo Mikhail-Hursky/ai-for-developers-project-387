@@ -1,0 +1,18 @@
+.hero {
+  background:
+    radial-gradient(60% 80% at 85% 15%, var(--mantine-color-brand-0) 0%, transparent 70%),
+    linear-gradient(180deg, var(--mantine-color-white) 0%, var(--mantine-color-gray-0) 100%);
+  border-bottom: 1px solid var(--mantine-color-gray-2);
+}
+
+.title {
+  font-size: 56px;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+
+@media (max-width: $mantine-breakpoint-sm) {
+  .title {
+    font-size: 36px;
+  }
+}

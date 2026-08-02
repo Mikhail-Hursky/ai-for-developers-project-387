@@ -1,9 +1,11 @@
-import { Container, Title } from '@mantine/core';
+import { Features } from '../features/home/Features';
+import { Hero } from '../features/home/Hero';
 
 export function HomePage() {
   return (
-    <Container size="lg" py={80}>
-      <Title order={1}>Запись на встречу за пару кликов</Title>
-    </Container>
+    <>
+      <Hero />
+      <Features />
+    </>
   );
 }

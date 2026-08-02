@@ -25,3 +25,12 @@ class ResizeObserverStub {
 }
 
 window.ResizeObserver = ResizeObserverStub;
+
+// Autosize из Textarea подписывается на `document.fonts` — в jsdom его нет.
+Object.defineProperty(document, 'fonts', {
+  configurable: true,
+  value: {
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  },
+});

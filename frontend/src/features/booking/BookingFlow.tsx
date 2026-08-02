@@ -1,18 +1,28 @@
 import { Alert, Button, Container, Grid, Group, Skeleton, Stack, Text, Title } from '@mantine/core';
-import { IconAlertTriangle } from '@tabler/icons-react';
+import { IconAlertTriangle, IconClockExclamation } from '@tabler/icons-react';
 import { useState } from 'react';
 import { Link } from 'react-router';
 
-import type { Slot } from '../../shared/api/types';
+import { createBooking } from '../../shared/api/endpoints';
+import { ApiError, type Booking, type Slot } from '../../shared/api/types';
 import { useBookingData } from '../../shared/api/useBookingData';
 import { currentTimeZone, formatDateTimeLong, formatTime } from '../../shared/format/datetime';
+import { BookingSuccess } from './BookingSuccess';
 import { DayList } from './DayList';
+import { GuestForm, type GuestFormValues } from './GuestForm';
 import { SlotGrid } from './SlotGrid';
 
 export function BookingFlow({ eventTypeId }: { eventTypeId: string }) {
   const { data, isLoading, error, retry } = useBookingData(eventTypeId);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
+  const [booking, setBooking] = useState<Booking | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<ApiError | null>(null);
+
+  if (booking) {
+    return <BookingSuccess booking={booking} />;
+  }
 
   if (error?.code === 'not_found') {
     return (
@@ -54,6 +64,17 @@ export function BookingFlow({ eventTypeId }: { eventTypeId: string }) {
   if (isLoading || !data) {
     return (
       <Container size="lg" py={{ base: 32, md: 64 }}>
+        {submitError?.code === 'slot_already_booked' && (
+          <Alert
+            color="yellow"
+            variant="light"
+            radius="md"
+            mb="lg"
+            icon={<IconClockExclamation size={20} />}
+          >
+            Это время уже заняли, выберите другое.
+          </Alert>
+        )}
         <Stack gap="lg">
           <Skeleton height={40} width={280} />
           <Grid gap="xl">
@@ -80,6 +101,49 @@ export function BookingFlow({ eventTypeId }: { eventTypeId: string }) {
     setSelectedSlot(null);
   }
 
+  async function handleSubmit(values: GuestFormValues) {
+    if (!selectedSlot) {
+      return;
+    }
+
+    const comment = values.comment.trim();
+
+    setIsSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      const created = await createBooking({
+        eventTypeId,
+        startAt: selectedSlot.startAt,
+        guestName: values.guestName.trim(),
+        guestEmail: values.guestEmail.trim(),
+        ...(comment ? { comment } : {}),
+      });
+      setBooking(created);
+    } catch (cause) {
+      const apiError =
+        cause instanceof ApiError
+          ? cause
+          : new ApiError('unknown_error', 'Не удалось создать запись', 0);
+      setSubmitError(apiError);
+
+      // Слот заняли, пока гость заполнял форму: сбрасываем выбор и
+      // перезапрашиваем свободное время, как требует контракт.
+      if (apiError.code === 'slot_already_booked') {
+        setSelectedSlot(null);
+        retry();
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  const fieldErrors = Object.fromEntries(
+    (submitError?.fieldErrors ?? []).map((item): [string, string] => [item.field, item.message]),
+  );
+  const generalSubmitError =
+    submitError && submitError.code !== 'slot_already_booked' ? submitError.message : null;
+
   return (
     <Container size="lg" py={{ base: 32, md: 64 }}>
       <Stack gap="xs" mb="xl">
@@ -91,6 +155,18 @@ export function BookingFlow({ eventTypeId }: { eventTypeId: string }) {
           {eventType.description}
         </Text>
       </Stack>
+
+      {submitError?.code === 'slot_already_booked' && (
+        <Alert
+          color="yellow"
+          variant="light"
+          radius="md"
+          mb="lg"
+          icon={<IconClockExclamation size={20} />}
+        >
+          Это время уже заняли, выберите другое.
+        </Alert>
+      )}
 
       {firstDateWithSlots === null ? (
         <Text c="dimmed">На ближайшие две недели свободных слотов нет.</Text>
@@ -116,9 +192,13 @@ export function BookingFlow({ eventTypeId }: { eventTypeId: string }) {
       )}
 
       {selectedSlot && (
-        <Text mt="xl" fw={500}>
-          Вы выбрали: {formatDateTimeLong(selectedSlot.startAt)} – {formatTime(selectedSlot.endAt)}
-        </Text>
+        <GuestForm
+          slotLabel={`${formatDateTimeLong(selectedSlot.startAt)} – ${formatTime(selectedSlot.endAt)}`}
+          isSubmitting={isSubmitting}
+          submitError={generalSubmitError}
+          fieldErrors={fieldErrors}
+          onSubmit={handleSubmit}
+        />
       )}
     </Container>
   );

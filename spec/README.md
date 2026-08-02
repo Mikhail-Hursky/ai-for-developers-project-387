@@ -35,3 +35,45 @@ TypeSpec-описание HTTP API календаря бронирования: 
 npm install
 npm run build   # tsp compile . → openapi/openapi.yaml
 ```
+
+## Мок-сервер
+
+Мок бэкенда поднимается [Prism](https://stoplight.io/open-source/prism) прямо
+из спецификации — фронтенд может разрабатываться до появления реального сервера.
+
+```bash
+npm run mock         # http://localhost:4010
+npm run mock:check   # smoke-проверка всех ручек
+```
+
+`npm run mock` компилирует TypeSpec, собирает `openapi/openapi.mock.yaml`
+(контракт + примеры ответов, файл не хранится в git) и запускает Prism.
+
+Пути — как в спецификации, **без префикса `/api`**: `GET http://localhost:4010/event-types`.
+
+### Данные мока
+
+- три типа события: `intro-call` (30 мин), `design-review` (60), `coffee-chat` (15);
+- слоты — окно на 14 дней от текущей даты: будни 10:00–18:00 UTC, выходные пустые,
+  часть слотов занята. Даты считаются в момент запуска, так что окно всегда в будущем;
+- предстоящие встречи — три брони разных типов в разные дни.
+
+### Выбор ответа
+
+Мок stateless: созданная бронь не появится в списке предстоящих, а 409 сам собой
+не возникнет. Нужный ответ выбирается заголовком `Prefer`:
+
+```bash
+curl -H 'Prefer: code=409' -X POST http://localhost:4010/bookings -d '...'   # slot_already_booked
+curl -H 'Prefer: code=404' http://localhost:4010/event-types/unknown         # not_found
+curl -H 'Prefer: example=design-review' http://localhost:4010/event-types/design-review/slots
+```
+
+Запросы валидируются по спецификации: невалидное тело `POST /bookings` вернёт
+`422 validation_failed` без всякого `Prefer`.
+
+### Правка моковых данных
+
+Данные лежат в [scripts/mock-fixtures.mjs](scripts/mock-fixtures.mjs), раскладка
+по ручкам — в [scripts/build-mock-spec.mjs](scripts/build-mock-spec.mjs).
+`main.tsp` при этом не меняется: контракт и dev-данные живут отдельно.

@@ -11,9 +11,9 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-async function fillNewType(user: ReturnType<typeof userEvent.setup>) {
+async function fillNewType(user: ReturnType<typeof userEvent.setup>, id = 'strategy-session') {
   await user.click(await screen.findByRole('button', { name: 'Создать тип' }));
-  await user.type(screen.getByLabelText(/Идентификатор/), 'strategy-session');
+  await user.type(screen.getByLabelText(/Идентификатор/), id);
   await user.type(screen.getByLabelText(/Название/), 'Стратегическая сессия');
   await user.clear(screen.getByLabelText(/Длительность/));
   await user.type(screen.getByLabelText(/Длительность/), '90');
@@ -59,6 +59,24 @@ describe('EventTypesAdmin', () => {
 
     expect(await screen.findByText('Тип встречи «Стратегическая сессия» создан.')).toBeInTheDocument();
     expect(screen.getByText('strategy-session')).toBeInTheDocument();
+  });
+
+  it('дедуплицирует по id повторное создание, когда мок отдаёт одну и ту же фикстуру', async () => {
+    const user = userEvent.setup();
+    stubFetch({
+      eventTypes: () => Response.json([INTRO_CALL]),
+      createEventType: () => Response.json(STRATEGY_SESSION, { status: 201 }),
+    });
+
+    renderUi(<EventTypesAdmin />);
+
+    await fillNewType(user);
+    expect(await screen.findByText('Тип встречи «Стратегическая сессия» создан.')).toBeInTheDocument();
+
+    await fillNewType(user, 'strategy-session-2');
+    expect(await screen.findByText('Тип встречи «Стратегическая сессия» создан.')).toBeInTheDocument();
+
+    expect(screen.getAllByText('strategy-session')).toHaveLength(1);
   });
 
   it('после 409 показывает ошибку под полем идентификатора', async () => {

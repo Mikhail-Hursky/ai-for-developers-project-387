@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  capitalizeFirst,
   currentTimeZone,
   formatDateLong,
   formatDateTimeLong,
@@ -61,5 +62,15 @@ describe('localDateKey', () => {
 describe('formatDateLong', () => {
   it('пишет день недели, число и месяц словами', () => {
     expect(formatDateLong('2026-08-05T11:00:00Z', 'UTC')).toBe('среда, 5 августа');
+  });
+});
+
+describe('capitalizeFirst', () => {
+  it('поднимает регистр только первой буквы', () => {
+    expect(capitalizeFirst('среда, 5 августа')).toBe('Среда, 5 августа');
+  });
+
+  it('не падает на пустой строке', () => {
+    expect(capitalizeFirst('')).toBe('');
   });
 });

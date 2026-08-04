@@ -60,6 +60,7 @@
 - Produces:
   - `localDateKey(isoDateTime: string, timeZone?: string): string`
   - `formatDateLong(isoDateTime: string, timeZone?: string): string`
+  - `capitalizeFirst(text: string): string`
 
 - [ ] **Step 1: Написать падающие тесты**
 
@@ -425,7 +426,7 @@ git commit -m "feat(api): add admin endpoints and test helpers"
 - Test: `frontend/src/features/admin/UpcomingBookings.test.tsx`
 
 **Interfaces:**
-- Consumes: `useUpcomingBookings()`, `localDateKey`, `formatDateLong`, `formatTimeRange`, `currentTimeZone`, тип `Booking`, `renderUi`, `stubFetch`, `upcomingBookingsFixture`.
+- Consumes: `useUpcomingBookings()`, `localDateKey`, `formatDateLong`, `capitalizeFirst`, `formatTimeRange`, `currentTimeZone`, тип `Booking`, `renderUi`, `stubFetch`, `upcomingBookingsFixture`.
 - Produces:
   - `<UpcomingBookings />` — без пропсов, грузит данные сама.
   - `<BookingCard booking={booking} />`
@@ -454,8 +455,8 @@ describe('UpcomingBookings', () => {
 
     renderUi(<UpcomingBookings />);
 
-    expect(await screen.findByText('среда, 5 августа')).toBeInTheDocument();
-    expect(screen.getByText('пятница, 7 августа')).toBeInTheDocument();
+    expect(await screen.findByText('Среда, 5 августа')).toBeInTheDocument();
+    expect(screen.getByText('Пятница, 7 августа')).toBeInTheDocument();
     expect(screen.getByText('11:00 – 11:30')).toBeInTheDocument();
     expect(screen.getByText('Знакомство · 30 мин')).toBeInTheDocument();
     expect(screen.getByText('Анна Петрова')).toBeInTheDocument();
@@ -562,7 +563,12 @@ import { IconAlertTriangle } from '@tabler/icons-react';
 
 import type { Booking } from '../../shared/api/types';
 import { useUpcomingBookings } from '../../shared/api/useUpcomingBookings';
-import { currentTimeZone, formatDateLong, localDateKey } from '../../shared/format/datetime';
+import {
+  capitalizeFirst,
+  currentTimeZone,
+  formatDateLong,
+  localDateKey,
+} from '../../shared/format/datetime';
 import { BookingCard } from './BookingCard';
 
 interface BookingsDay {
@@ -586,7 +592,7 @@ function groupByDay(bookings: Booking[]): BookingsDay[] {
     if (lastDay?.key === key) {
       lastDay.bookings.push(booking);
     } else {
-      days.push({ key, label: formatDateLong(booking.startAt), bookings: [booking] });
+      days.push({ key, label: capitalizeFirst(formatDateLong(booking.startAt)), bookings: [booking] });
     }
   }
 
@@ -635,7 +641,7 @@ export function UpcomingBookings() {
     <Stack gap="xl">
       {groupByDay(data).map((day) => (
         <Stack key={day.key} gap="sm">
-          <Title order={2} fz="md" tt="capitalize">
+          <Title order={2} fz="md">
             {day.label}
           </Title>
           {day.bookings.map((booking) => (
@@ -729,7 +735,7 @@ describe('EventTypeForm', () => {
     await user.click(screen.getByRole('button', { name: 'Создать' }));
 
     expect(
-      await screen.findByText('Латиница в нижнем регистре, цифры и дефисы, например intro-call'),
+      await screen.findByText('Латиница в нижнем регистре, цифры и дефисы, например, intro-call'),
     ).toBeInTheDocument();
     expect(onSubmit).not.toHaveBeenCalled();
   });
@@ -847,7 +853,7 @@ export function EventTypeForm({
         }
         return ID_PATTERN.test(trimmed)
           ? null
-          : 'Латиница в нижнем регистре, цифры и дефисы, например intro-call';
+          : 'Латиница в нижнем регистре, цифры и дефисы, например, intro-call';
       },
       name: (value) => {
         const trimmed = value.trim();

@@ -59,10 +59,23 @@ export const STRATEGY_SESSION: EventType = {
   durationMinutes: 90,
 };
 
-/** Две встречи разных типов в разные дни — хватает, чтобы проверить группировку. */
+/**
+ * Три встречи: две в один день (вторая позже по времени — список
+ * отсортирован по возрастанию `startAt`) и одна в другой день. Хватает,
+ * чтобы проверить и группировку по дням, и слияние броней одного дня.
+ */
 export function upcomingBookingsFixture(): Booking[] {
   return [
     bookingFixture(),
+    {
+      id: '9b1e4f7a-3c88-4d5f-9b4d-3a2e6f7c8b03',
+      eventType: INTRO_CALL,
+      startAt: '2026-08-05T14:00:00Z',
+      endAt: '2026-08-05T14:30:00Z',
+      guestName: 'Сергей Волков',
+      guestEmail: 'sergey.volkov@example.com',
+      createdAt: '2026-08-02T09:15:00Z',
+    },
     {
       id: '7c9e2d4b-2b77-4f8e-8a3c-2f1d5e6b7a02',
       eventType: DESIGN_REVIEW,

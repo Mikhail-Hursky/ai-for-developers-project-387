@@ -80,3 +80,8 @@ export function formatDateLong(isoDateTime: string, timeZone: string = currentTi
     timeZone,
   }).format(new Date(isoDateTime));
 }
+
+/** «среда, 5 августа» → «Среда, 5 августа»: заглавная только первая буква. */
+export function capitalizeFirst(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}

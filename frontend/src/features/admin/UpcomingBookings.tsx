@@ -3,7 +3,12 @@ import { IconAlertTriangle } from '@tabler/icons-react';
 
 import type { Booking } from '../../shared/api/types';
 import { useUpcomingBookings } from '../../shared/api/useUpcomingBookings';
-import { currentTimeZone, formatDateLong, localDateKey } from '../../shared/format/datetime';
+import {
+  capitalizeFirst,
+  currentTimeZone,
+  formatDateLong,
+  localDateKey,
+} from '../../shared/format/datetime';
 import { BookingCard } from './BookingCard';
 
 interface BookingsDay {
@@ -27,7 +32,7 @@ function groupByDay(bookings: Booking[]): BookingsDay[] {
     if (lastDay?.key === key) {
       lastDay.bookings.push(booking);
     } else {
-      days.push({ key, label: formatDateLong(booking.startAt), bookings: [booking] });
+      days.push({ key, label: capitalizeFirst(formatDateLong(booking.startAt)), bookings: [booking] });
     }
   }
 
@@ -76,7 +81,7 @@ export function UpcomingBookings() {
     <Stack gap="xl">
       {groupByDay(data).map((day) => (
         <Stack key={day.key} gap="sm">
-          <Title order={2} fz="md" tt="capitalize">
+          <Title order={2} fz="md">
             {day.label}
           </Title>
           {day.bookings.map((booking) => (

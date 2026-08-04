@@ -50,7 +50,7 @@ export function EventTypeForm({
         }
         return ID_PATTERN.test(trimmed)
           ? null
-          : 'Латиница в нижнем регистре, цифры и дефисы, например intro-call';
+          : 'Латиница в нижнем регистре, цифры и дефисы, например, intro-call';
       },
       name: (value) => {
         const trimmed = value.trim();

@@ -38,7 +38,7 @@ describe('EventTypeForm', () => {
     await user.click(screen.getByRole('button', { name: 'Создать' }));
 
     expect(
-      await screen.findByText('Латиница в нижнем регистре, цифры и дефисы, например intro-call'),
+      await screen.findByText('Латиница в нижнем регистре, цифры и дефисы, например, intro-call'),
     ).toBeInTheDocument();
     expect(onSubmit).not.toHaveBeenCalled();
   });

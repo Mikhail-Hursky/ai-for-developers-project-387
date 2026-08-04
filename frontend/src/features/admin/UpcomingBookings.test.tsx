@@ -17,15 +17,28 @@ describe('UpcomingBookings', () => {
 
     renderUi(<UpcomingBookings />);
 
-    expect(await screen.findByText('среда, 5 августа')).toBeInTheDocument();
-    expect(screen.getByText('пятница, 7 августа')).toBeInTheDocument();
+    expect(await screen.findByText('Среда, 5 августа')).toBeInTheDocument();
+    expect(screen.getByText('Пятница, 7 августа')).toBeInTheDocument();
     expect(screen.getByText('11:00 – 11:30')).toBeInTheDocument();
-    expect(screen.getByText('Знакомство · 30 мин')).toBeInTheDocument();
+    expect(screen.getAllByText('Знакомство · 30 мин').length).toBeGreaterThan(0);
     expect(screen.getByText('Анна Петрова')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'igor.severov@example.com' })).toHaveAttribute(
       'href',
       'mailto:igor.severov@example.com',
     );
+  });
+
+  it('сводит брони одного дня под один заголовок', async () => {
+    stubFetch({ upcomingBookings: () => Response.json(upcomingBookingsFixture()) });
+
+    renderUi(<UpcomingBookings />);
+
+    const dayHeadings = await screen.findAllByRole('heading', { level: 2 });
+    expect(dayHeadings.map((heading) => heading.textContent)).toEqual([
+      'Среда, 5 августа',
+      'Пятница, 7 августа',
+    ]);
+    expect(screen.getAllByRole('link')).toHaveLength(3);
   });
 
   it('показывает комментарий гостя, если он есть', async () => {

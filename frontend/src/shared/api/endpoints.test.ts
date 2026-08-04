@@ -1,7 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { apiBaseUrl } from './client';
-import { createBooking, fetchAvailability, fetchEventType, fetchEventTypes } from './endpoints';
+import {
+  createBooking,
+  createEventType,
+  fetchAvailability,
+  fetchEventType,
+  fetchEventTypes,
+  fetchUpcomingBookings,
+} from './endpoints';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -59,5 +66,34 @@ describe('endpoints', () => {
 
     expect(fetchMock.mock.calls[0]?.[0]).toBe(`${apiBaseUrl}/bookings`);
     expect(fetchMock.mock.calls[0]?.[1]?.method).toBe('POST');
+  });
+
+  it('запрашивает предстоящие встречи админской ручкой', async () => {
+    const fetchMock = stub();
+
+    await fetchUpcomingBookings(new AbortController().signal);
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(`${apiBaseUrl}/admin/bookings/upcoming`);
+    expect(headerOf(fetchMock.mock.calls[0]?.[1], 'Prefer')).toBeNull();
+  });
+
+  it('создаёт тип события методом POST', async () => {
+    const fetchMock = stub();
+
+    await createEventType({
+      id: 'strategy-session',
+      name: 'Стратегическая сессия',
+      description: 'Полтора часа на планирование квартала.',
+      durationMinutes: 90,
+    });
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(`${apiBaseUrl}/admin/event-types`);
+    expect(fetchMock.mock.calls[0]?.[1]?.method).toBe('POST');
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({
+      id: 'strategy-session',
+      name: 'Стратегическая сессия',
+      description: 'Полтора часа на планирование квартала.',
+      durationMinutes: 90,
+    });
   });
 });

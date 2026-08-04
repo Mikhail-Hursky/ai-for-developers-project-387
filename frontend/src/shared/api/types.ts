@@ -70,3 +70,11 @@ export class ApiError extends Error {
     this.fieldErrors = fieldErrors;
   }
 }
+
+/** Все поля типа события задаёт владелец, включая `id` (контракт: `...EventType`). */
+export interface CreateEventTypeRequest {
+  id: string;
+  name: string;
+  description: string;
+  durationMinutes: number;
+}

@@ -9,16 +9,27 @@ export interface FetchRoutes {
   booking?: () => Response;
   /** `GET /event-types` */
   eventTypes?: () => Response;
+  /** `GET /admin/bookings/upcoming` */
+  upcomingBookings?: () => Response;
+  /** `POST /admin/event-types` */
+  createEventType?: () => Response;
 }
 
 /**
- * Подменяет `fetch` и раздаёт ответы по URL. Проверка `/slots` идёт первой:
- * путь слотов содержит в себе путь типа события.
+ * Подменяет `fetch` и раздаёт ответы по URL. Порядок проверок важен:
+ * админские пути идут первыми (`/admin/event-types` заканчивается на
+ * `/event-types`), а путь слотов содержит в себе путь типа события.
  */
 export function stubFetch(routes: FetchRoutes) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
     const url = String(input);
 
+    if (url.endsWith('/admin/bookings/upcoming') && routes.upcomingBookings) {
+      return routes.upcomingBookings();
+    }
+    if (url.endsWith('/admin/event-types') && routes.createEventType) {
+      return routes.createEventType();
+    }
     if (url.endsWith('/slots') && routes.slots) {
       return routes.slots();
     }

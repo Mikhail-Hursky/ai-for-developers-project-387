@@ -1,5 +1,11 @@
 import { apiGet, apiPost } from './client';
-import type { Availability, Booking, CreateBookingRequest, EventType } from './types';
+import type {
+  Availability,
+  Booking,
+  CreateBookingRequest,
+  CreateEventTypeRequest,
+  EventType,
+} from './types';
 
 /**
  * Prism выбирает пример ответа заголовком `Prefer`. Примеры ручек по id названы
@@ -33,4 +39,15 @@ export function createBooking(
   signal?: AbortSignal,
 ): Promise<Booking> {
   return apiPost<Booking>('/bookings', request, { signal });
+}
+
+export function fetchUpcomingBookings(signal: AbortSignal): Promise<Booking[]> {
+  return apiGet<Booking[]>('/admin/bookings/upcoming', { signal });
+}
+
+export function createEventType(
+  request: CreateEventTypeRequest,
+  signal?: AbortSignal,
+): Promise<EventType> {
+  return apiPost<EventType>('/admin/event-types', request, { signal });
 }

@@ -3,7 +3,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app import config
+from app import api, config
+from app.errors import register_error_handlers
 
 
 def create_app() -> FastAPI:
@@ -18,6 +19,8 @@ def create_app() -> FastAPI:
         allow_methods=["GET", "POST"],
         allow_headers=["Accept", "Content-Type"],
     )
+    register_error_handlers(app)
+    app.include_router(api.router)
     return app
 
 

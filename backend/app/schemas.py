@@ -31,7 +31,7 @@ def _format_utc(value: datetime) -> str:
 UtcDateTime = Annotated[
     datetime,
     AfterValidator(_require_utc),
-    PlainSerializer(_format_utc, return_type=str),
+    PlainSerializer(_format_utc, return_type=str, when_used="json"),
 ]
 
 EventTypeId = Annotated[

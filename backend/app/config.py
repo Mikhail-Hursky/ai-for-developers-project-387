@@ -19,3 +19,8 @@ LEAD_TIME_MINUTES = 5
 
 CORS_ORIGINS = ("http://localhost:5173", "http://localhost:4173")
 """Адреса Vite: dev-сервер и preview."""
+
+CORS_ALLOW_HEADERS = ("Accept", "Content-Type", "Prefer")
+"""Заголовки, которые пропускает CORS. `Prefer` шлёт фронтенд на страницу
+бронирования (ориентируясь на пример Prism-мока); на проде поведение ручек
+от него не зависит, но без этого браузер режет запрос preflight'ом."""

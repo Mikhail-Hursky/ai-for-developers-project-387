@@ -25,6 +25,4 @@ def create_event_type(request: CreateEventTypeRequest, storage: StorageDep) -> E
     summary="Предстоящие встречи",
 )
 def list_upcoming_bookings(storage: StorageDep, now: NowDep) -> list[Booking]:
-    """Брони всех типов событий, начинающиеся не раньше текущего момента."""
-    upcoming = [booking for booking in storage.list_bookings() if booking.start_at >= now]
-    return sorted(upcoming, key=lambda booking: booking.start_at)
+    return storage.upcoming_bookings(now)

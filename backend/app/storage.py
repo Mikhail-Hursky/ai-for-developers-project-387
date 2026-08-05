@@ -31,6 +31,11 @@ class Storage:
     def list_bookings(self) -> list[Booking]:
         return list(self._bookings.values())
 
+    def upcoming_bookings(self, now: datetime) -> list[Booking]:
+        """Брони всех типов событий, начинающиеся не раньше `now`, по возрастанию начала."""
+        upcoming = [booking for booking in self.list_bookings() if booking.start_at >= now]
+        return sorted(upcoming, key=lambda booking: booking.start_at)
+
     def add_booking(self, booking: Booking) -> None:
         self._bookings[booking.id] = booking
 

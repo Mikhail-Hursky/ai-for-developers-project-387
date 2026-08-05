@@ -81,8 +81,7 @@ def register_error_handlers(app: FastAPI) -> None:
         _: Request, error: RequestValidationError
     ) -> JSONResponse:
         errors = [
-            {"field": _field_name(item["loc"]), "message": item["msg"]}
-            for item in error.errors()
+            {"field": _field_name(item["loc"]), "message": item["msg"]} for item in error.errors()
         ]
         return JSONResponse(
             status_code=422,

@@ -79,9 +79,7 @@ def build_availability(
         slot_duration_minutes=event_type.duration_minutes,
         window_start_date=days[0],
         window_end_date=days[-1],
-        days=[
-            day_availability(day, event_type.duration_minutes, now, busy) for day in days
-        ],
+        days=[day_availability(day, event_type.duration_minutes, now, busy) for day in days],
     )
 
 

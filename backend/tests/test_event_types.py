@@ -19,9 +19,7 @@ def test_event_types_are_empty_on_a_fresh_start(client: TestClient):
     assert response.json() == []
 
 
-def test_event_types_are_listed_with_contract_field_names(
-    client: TestClient, storage: Storage
-):
+def test_event_types_are_listed_with_contract_field_names(client: TestClient, storage: Storage):
     add_event_type(storage, INTRO_CALL)
     add_event_type(storage, DESIGN_REVIEW)
 

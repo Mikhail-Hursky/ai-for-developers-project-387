@@ -72,6 +72,14 @@ def test_weekend_grid_is_empty():
     assert day_grid(SUNDAY, duration_minutes=30) == []
 
 
+def test_full_day_duration_gives_no_slots_on_a_workday():
+    # Контракт разрешает durationMinutes до 1440 (сутки), но рабочий день
+    # фиксирован в 8 часов (10:00-18:00) — такая длительность не влезает ни в
+    # один слот. Это осознанное расхождение контракта с дизайном рабочего дня,
+    # тест фиксирует его как намеренное, а не как случайный пробел.
+    assert day_grid(WEDNESDAY, duration_minutes=1440) == []
+
+
 def test_overlapping_intervals_are_detected():
     busy = [(datetime(2026, 8, 5, 10, 0, tzinfo=UTC), datetime(2026, 8, 5, 11, 0, tzinfo=UTC))]
 
@@ -90,6 +98,18 @@ def test_slots_starting_within_lead_time_are_hidden():
     day = day_availability(WEDNESDAY, duration_minutes=30, now=now, busy=[])
 
     assert day.slots[0].start_at == datetime(2026, 8, 5, 10, 30, tzinfo=UTC)
+
+
+def test_slot_starting_exactly_at_the_lead_time_boundary_is_bookable():
+    # Граница — код использует `>=`/`не <`, а не строгое неравенство: слот,
+    # начинающийся ровно через LEAD_TIME_MINUTES, должен остаться доступным.
+    now = datetime(2026, 8, 5, 9, 55, tzinfo=UTC)
+    boundary_start = datetime(2026, 8, 5, 10, 0, tzinfo=UTC)
+
+    assert is_bookable_start(INTRO_CALL, boundary_start, now) is True
+
+    day = day_availability(WEDNESDAY, duration_minutes=30, now=now, busy=[])
+    assert day.slots[0].start_at == boundary_start
 
 
 def test_slot_of_another_event_type_blocks_the_overlapping_slot():

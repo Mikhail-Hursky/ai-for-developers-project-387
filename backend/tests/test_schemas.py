@@ -87,6 +87,18 @@ def test_duration_outside_contract_bounds_is_rejected(duration_minutes: int):
         )
 
 
+@pytest.mark.parametrize("duration_minutes", [1, 1440])
+def test_duration_at_contract_bounds_is_accepted(duration_minutes: int):
+    event_type = EventType(
+        id="intro-call",
+        name="Знакомство",
+        description="",
+        duration_minutes=duration_minutes,
+    )
+
+    assert event_type.duration_minutes == duration_minutes
+
+
 def test_malformed_guest_email_is_rejected():
     with pytest.raises(ValidationError):
         CreateBookingRequest(

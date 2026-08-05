@@ -35,8 +35,15 @@ class Storage:
         self._bookings[booking.id] = booking
 
     def busy_intervals(self) -> list[tuple[datetime, datetime]]:
-        """Интервалы всех броней: правило занятости не различает типы событий."""
-        return [(booking.start_at, booking.end_at) for booking in self._bookings.values()]
+        """Интервалы всех броней: правило занятости не различает типы событий.
+
+        `list(...)` снимает атомарный снапшот view до итерации: без него чтение
+        может пересечься с записью под локом в другом потоке threadpool'а и
+        поймать `RuntimeError: dictionary changed size during iteration`. Взять
+        здесь тот же лок, что в booking.py, нельзя — он нереентрантный, а
+        booking.py вызывает этот метод, уже держа его: получился бы дедлок.
+        """
+        return [(b.start_at, b.end_at) for b in list(self._bookings.values())]
 
 
 _storage = Storage()

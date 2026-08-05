@@ -4,7 +4,12 @@ from datetime import datetime, timedelta
 from uuid import uuid4
 
 from app import slots
-from app.errors import NotFoundError, SlotConflictError, ValidationFailedError
+from app.errors import (
+    EVENT_TYPE_NOT_FOUND_MESSAGE,
+    NotFoundError,
+    SlotConflictError,
+    ValidationFailedError,
+)
 from app.schemas import Booking, CreateBookingRequest
 from app.storage import Storage
 
@@ -21,7 +26,7 @@ def create_booking(request: CreateBookingRequest, storage: Storage, now: datetim
     """
     event_type = storage.get_event_type(request.event_type_id)
     if event_type is None:
-        raise NotFoundError("Тип события не найден.")
+        raise NotFoundError(EVENT_TYPE_NOT_FOUND_MESSAGE)
 
     if not slots.is_bookable_start(event_type, request.start_at, now):
         raise ValidationFailedError("startAt", OFF_GRID_MESSAGE)

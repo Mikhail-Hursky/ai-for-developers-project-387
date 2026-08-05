@@ -9,6 +9,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 VALIDATION_MESSAGE = "Запрос не прошёл валидацию."
+EVENT_TYPE_NOT_FOUND_MESSAGE = "Тип события не найден."
 
 _LOCATION_PREFIXES = frozenset({"body", "query", "path", "header", "cookie"})
 

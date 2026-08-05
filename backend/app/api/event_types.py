@@ -4,7 +4,7 @@ from fastapi import APIRouter
 
 from app import slots
 from app.api.deps import NowDep, StorageDep
-from app.errors import NotFoundError
+from app.errors import EVENT_TYPE_NOT_FOUND_MESSAGE, NotFoundError
 from app.schemas import Availability, EventType
 from app.storage import Storage
 
@@ -15,7 +15,7 @@ def require_event_type(storage: Storage, event_type_id: str) -> EventType:
     """Найти тип события или ответить 404 — контракт другого варианта не даёт."""
     event_type = storage.get_event_type(event_type_id)
     if event_type is None:
-        raise NotFoundError("Тип события не найден.")
+        raise NotFoundError(EVENT_TYPE_NOT_FOUND_MESSAGE)
     return event_type
 
 

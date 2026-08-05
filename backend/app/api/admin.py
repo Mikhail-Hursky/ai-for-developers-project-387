@@ -4,12 +4,26 @@ from fastapi import APIRouter
 
 from app.api.deps import NowDep, StorageDep
 from app.errors import EventTypeConflictError
-from app.schemas import Booking, CreateEventTypeRequest, EventType
+from app.schemas import (
+    Booking,
+    CreateEventTypeRequest,
+    EventType,
+    EventTypeConflictErrorResponse,
+    ValidationErrorResponse,
+)
 
 router = APIRouter(prefix="/admin", tags=["Владелец: админская часть"])
 
 
-@router.post("/event-types", status_code=201, summary="Создать тип события")
+@router.post(
+    "/event-types",
+    status_code=201,
+    summary="Создать тип события",
+    responses={
+        409: {"model": EventTypeConflictErrorResponse},
+        422: {"model": ValidationErrorResponse},
+    },
+)
 def create_event_type(request: CreateEventTypeRequest, storage: StorageDep) -> EventType:
     """Владелец задаёт id сам, поэтому дубликат — обычный конфликт, а не ошибка сервера."""
     with storage.lock:

@@ -6,7 +6,7 @@ alias-генератор базовой модели. Время сериали�
 """
 
 from datetime import UTC, date, datetime
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, EmailStr, Field, PlainSerializer
@@ -106,3 +106,49 @@ class Booking(GuestInfo):
     start_at: UtcDateTime
     end_at: UtcDateTime
     created_at: UtcDateTime
+
+
+# ===================== Ответы об ошибках (для /docs) =====================
+#
+# Модели ниже повторяют форму ошибок из spec/main.tsp (NotFoundError,
+# SlotConflictError, EventTypeConflictError, ValidationError, FieldError) —
+# они не создаются в коде, а только объявлены в `responses={...}` роутеров,
+# чтобы сгенерированный OpenAPI документировал контрактное тело ошибки, а не
+# сток-схему FastAPI `HTTPValidationError`. Названы с суффиксом Response,
+# чтобы не путаться с исключениями из app/errors.py.
+
+
+class NotFoundErrorResponse(ApiModel):
+    """Ресурс не найден."""
+
+    code: Literal["not_found"]
+    message: str
+
+
+class SlotConflictErrorResponse(ApiModel):
+    """Время уже занято другой бронью."""
+
+    code: Literal["slot_already_booked"]
+    message: str
+
+
+class EventTypeConflictErrorResponse(ApiModel):
+    """Тип события с таким `id` уже существует."""
+
+    code: Literal["event_type_already_exists"]
+    message: str
+
+
+class FieldError(ApiModel):
+    """Ошибка в одном из полей запроса."""
+
+    field: str
+    message: str
+
+
+class ValidationErrorResponse(ApiModel):
+    """Запрос не прошёл валидацию: детали по полям — в `errors`, поле необязательное."""
+
+    code: Literal["validation_failed"]
+    message: str
+    errors: list[FieldError] | None = None

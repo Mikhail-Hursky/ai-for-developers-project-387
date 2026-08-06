@@ -108,6 +108,21 @@ npm test
 `main.tsp` его нужно пересобрать (`npm run build` в `spec/`) и закоммитить.
 CI сверяет их job'ом `spec`.
 
+### Версия npm и package-lock.json
+
+CI ставит Node 24 последней версии, то есть npm 11.17 и новее. Старый npm
+записывает в `package-lock.json` не все зависимости опциональных
+платформенных пакетов (например, wasm-биндинга rolldown), сам такой файл
+проглатывает, а новый — падает с `npm ci can only install packages when your
+package.json and package-lock.json are in sync`.
+
+Поэтому держите локальный Node на актуальной 24-й версии, а если трогали
+зависимости — проверьте установку тем же npm, что и в CI:
+
+```bash
+npx npm@latest ci
+```
+
 ## CI
 
 [.github/workflows/ci.yml](.github/workflows/ci.yml) запускается на пуш в `main`

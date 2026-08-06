@@ -1,0 +1,16 @@
+# Договорённость о формате коммитов: CONTRIBUTING.md → «Формат коммитов».
+# Правила проверяет job `commitlint` в .github/workflows/ci.yml.
+extends:
+  - '@commitlint/config-conventional'
+rules:
+  # Тип обязателен и берётся только из согласованного списка: по нему
+  # release-please считает версию и раскладывает CHANGELOG по разделам.
+  type-enum:
+    - 2
+    - always
+    - [feat, fix, perf, refactor, test, docs, style, build, ci, chore, revert]
+  # Область — свободная строка (backend, admin, slots, e2e, openapi…),
+  # но если она есть, то в нижнем регистре.
+  scope-case: [2, always, lower-case]
+  header-max-length: [2, always, 100]
+  body-max-line-length: [2, always, 100]

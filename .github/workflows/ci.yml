@@ -1,0 +1,141 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Новый пуш в ту же ветку отменяет предыдущий прогон: e2e занимают раннер
+# надолго, а результат устаревшего коммита никому не нужен.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  commits:
+    name: commitlint
+    runs-on: ubuntu-latest
+    # На pull_request action читает список коммитов PR через API.
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      # fetch-depth: 0 — action сравнивает диапазон коммитов пуша или PR,
+      # на мелком клоне ему нечего сравнивать.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: wagoid/commitlint-github-action@v6.2.1
+        with:
+          # По умолчанию action ищет commitlint.config.mjs и, не найдя его,
+          # молча берёт голый config-conventional — наш файл нужно указать явно.
+          configFile: .commitlintrc.yml
+          helpURL: https://github.com/Mikhail-Hursky/ai-for-developers-project-386/blob/main/CONTRIBUTING.md
+
+  spec:
+    name: spec (TypeSpec + Prism)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: spec
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: spec/package-lock.json
+      - run: npm ci
+      # mock:check сам компилирует TypeSpec, собирает мок-спеку и дёргает
+      # все ручки поднятого Prism.
+      - run: npm run mock:check
+      # Скомпилированный openapi.yaml лежит в репозитории: если он разошёлся
+      # с main.tsp, кто-то забыл пересобрать контракт.
+      - name: openapi.yaml соответствует main.tsp
+        run: git diff --exit-code -- openapi/openapi.yaml
+
+  frontend:
+    name: frontend (ESLint + Vitest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      # build начинается с `tsc --noEmit`, поэтому отдельный typecheck не нужен.
+      - run: npm run build
+
+  backend:
+    name: backend (ruff + pytest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+      # Версия Python не задаётся: uv сам поставит подходящую под
+      # requires-python из pyproject.toml.
+      - uses: astral-sh/setup-uv@v9.0.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - run: uv sync --frozen
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run pytest
+
+  e2e:
+    name: e2e (Playwright)
+    # Гонять браузер имеет смысл только если юнит-тесты уже прошли.
+    needs: [frontend, backend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            e2e/package-lock.json
+            frontend/package-lock.json
+      - uses: astral-sh/setup-uv@v9.0.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      # Playwright сам поднимает бэкенд и прод-сборку фронтенда, поэтому
+      # зависимости нужны всем трём пакетам.
+      - run: npm ci
+        working-directory: frontend
+      - run: uv sync --frozen
+        working-directory: backend
+      - run: npm ci
+        working-directory: e2e
+      # --with-deps: на ubuntu-раннере браузеру не хватает системных библиотек.
+      - run: npx playwright install --with-deps chromium
+        working-directory: e2e
+      - run: npm run typecheck
+        working-directory: e2e
+      - run: npm test
+        working-directory: e2e
+      # В CI используется github-репортер, html-отчёта нет; трейсы и скриншоты
+      # падений лежат в test-results.
+      - name: Сохранить артефакты упавшего прогона
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-test-results
+          path: e2e/test-results
+          if-no-files-found: ignore
+          retention-days: 7

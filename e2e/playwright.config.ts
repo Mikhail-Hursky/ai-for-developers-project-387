@@ -1,13 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const FRONTEND_PORT = 4173;
-const BACKEND_PORT = 3000;
-
-/** Адрес прод-сборки фронтенда: порт 4173 уже разрешён в CORS бэкенда. */
-export const baseURL = `http://localhost:${FRONTEND_PORT}`;
-
-/** Адрес бэкенда, с которым собирается фронтенд и куда ходит тестовый клиент. */
-export const apiBaseURL = `http://localhost:${BACKEND_PORT}/api`;
+import { apiBaseURL, baseURL, BACKEND_PORT, FRONTEND_PORT } from './fixtures/env';
 
 export default defineConfig({
   testDir: './tests',
@@ -19,7 +12,9 @@ export default defineConfig({
 
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  reporter: process.env.CI ? 'github' : 'html',
+  // open: 'never' — иначе упавший локальный прогон сам открывает окно браузера
+  // с отчётом; смотреть его есть чем: `npm run report`.
+  reporter: process.env.CI ? 'github' : [['html', { open: 'never' }]],
   timeout: 30_000,
   expect: { timeout: 10_000 },
 

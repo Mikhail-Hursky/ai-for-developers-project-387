@@ -20,6 +20,13 @@ test('занятый идентификатор типа встречи пока
   // Сообщение приходит от бэкенда с кодом event_type_already_exists и
   // показывается как ошибка поля «Идентификатор», а не всей формы.
   const modal = page.getByRole('dialog');
-  await expect(modal).toBeVisible();
   await expect(modal.getByText('Тип события с таким id уже существует.')).toBeVisible();
+
+  // Mantine прокидывает `error` в aria-describedby поля: так проверяется, что
+  // ошибка привязана именно к «Идентификатору», а не просто лежит в модалке.
+  await expect(modal.getByLabel('Идентификатор')).toHaveAccessibleDescription(/уже существует/);
+
+  // Проверка после появления ошибки: сразу после сабмита модалка была бы
+  // открыта в любом случае — запрос ещё летит.
+  await expect(modal).toBeVisible();
 });

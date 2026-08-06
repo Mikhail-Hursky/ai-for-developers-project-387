@@ -5,7 +5,6 @@ import {
   fillGuestForm,
   firstAvailableSlot,
   selectSlot,
-  slotLabel,
   submitGuestForm,
   waitForAvailability,
 } from '../fixtures/booking';
@@ -50,13 +49,21 @@ test('слот, занятый во время заполнения формы, 
   // дожидаемся именно этого ответа, иначе проверка сетки гонится с загрузкой.
   const refreshed = waitForAvailability(page, id);
   await submitGuestForm(page);
-  await refreshed;
+  const after = await refreshed;
 
   await expect(page.getByText('Это время уже заняли, выберите другое.')).toBeVisible();
+
+  // Ответ, дошедший до Node, ещё не значит, что React перерисовался: на время
+  // загрузки BookingFlow показывает скелетоны без формы и без сетки. Сначала
+  // дожидаемся сетки, иначе «скрыто» ниже означало бы «страница ещё грузится».
+  await expect(page.getByRole('group', { name: 'Свободные слоты' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Записаться', exact: true })).toBeHidden();
-  await expect(
-    page
-      .getByRole('group', { name: 'Свободные слоты' })
-      .getByRole('button', { name: slotLabel(slot), exact: true }),
-  ).toBeHidden();
+
+  // Сетка рисует только активный день, а он мог смениться, если занятый слот
+  // был в этом дне последним. Поэтому смотрим на сам ответ, а не на кнопку:
+  // в соседнем дне нашлась бы кнопка с той же подписью.
+  const stillFree = after.days.some((day) =>
+    day.slots.some((item) => item.startAt === slot.startAt),
+  );
+  expect(stillFree, 'занятый слот пропал из обновлённой сетки').toBe(false);
 });

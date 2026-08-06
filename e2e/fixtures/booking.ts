@@ -17,20 +17,32 @@ export function waitForAvailability(page: Page, eventTypeId: string): Promise<Av
 }
 
 /**
- * Первый свободный слот в окне записи — ровно тот, который интерфейс открывает
- * по умолчанию. Фиксированное время брать нельзя: брони предыдущих тестов
- * закрывают слоты независимо от типа встречи.
+ * Бэкенд принимает бронь, только если слот начинается не раньше чем через
+ * 5 минут. Между выбором слота и отправкой формы тест тратит ещё несколько
+ * секунд на клики и ввод, поэтому берём запас: 7 минут.
+ */
+const MIN_LEAD_TIME_MS = 7 * 60 * 1000;
+
+/**
+ * Первый свободный слот в окне записи, до начала которого ещё есть запас по
+ * времени. Фиксированное время брать нельзя: брони предыдущих тестов закрывают
+ * слоты независимо от типа встречи. Слот у самой границы упреждения тоже не
+ * годится — он успеет протухнуть, пока тест заполняет форму.
  */
 export function firstAvailableSlot(availability: Availability): Slot {
-  const day = availability.days.find((item) => item.slots.length > 0);
+  const earliestStart = Date.now() + MIN_LEAD_TIME_MS;
 
-  if (!day) {
-    throw new Error(
-      `В окне ${availability.windowStartDate}…${availability.windowEndDate} нет свободных слотов`,
-    );
+  for (const day of availability.days) {
+    const slot = day.slots.find((item) => Date.parse(item.startAt) >= earliestStart);
+
+    if (slot) {
+      return slot;
+    }
   }
 
-  return day.slots[0];
+  throw new Error(
+    `В окне ${availability.windowStartDate}…${availability.windowEndDate} нет свободных слотов`,
+  );
 }
 
 /** Подпись кнопки слота: с `timezoneId: 'UTC'` это часы и минуты из `startAt`. */

@@ -33,7 +33,7 @@ export async function submitEventTypeForm(page: Page, values: EventTypeValues): 
   await duration.fill(String(values.durationMinutes));
   await expect(duration).toHaveValue(String(values.durationMinutes));
 
-  // exact: иначе имя совпало бы и с кнопкой «Создать тип» под модалкой.
+  // exact: у getByRole имя по умолчанию сопоставляется по подстроке.
   await modal.getByRole('button', { name: 'Создать', exact: true }).click();
 }
 

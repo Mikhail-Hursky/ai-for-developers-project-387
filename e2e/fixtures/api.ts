@@ -1,7 +1,6 @@
 import { expect, type APIRequestContext } from '@playwright/test';
 
-/** Тот же адрес, с которым playwright.config.ts собирает фронтенд. */
-export const API_BASE_URL = 'http://localhost:3000/api';
+import { apiBaseURL } from './env';
 
 export interface Slot {
   startAt: string;
@@ -38,6 +37,6 @@ export async function createBookingViaApi(
   request: APIRequestContext,
   input: BookingInput,
 ): Promise<void> {
-  const response = await request.post(`${API_BASE_URL}/bookings`, { data: input });
+  const response = await request.post(`${apiBaseURL}/bookings`, { data: input });
   expect(response.status(), await response.text()).toBe(201);
 }

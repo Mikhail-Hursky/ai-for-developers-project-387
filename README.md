@@ -5,4 +5,5 @@
 
 - [spec/](spec/) — контракт API на TypeSpec и Prism-мок;
 - [frontend/](frontend/) — интерфейс на React + Mantine;
-- [backend/](backend/) — реализация контракта на FastAPI с хранилищем в памяти.
+- [backend/](backend/) — реализация контракта на FastAPI с хранилищем в памяти;
+- [e2e/](e2e/) — сквозные браузерные тесты на Playwright.

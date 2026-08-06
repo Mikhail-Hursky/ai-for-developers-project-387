@@ -8,7 +8,9 @@
 
 - `uv` — им запускается бэкенд;
 - зависимости фронтенда: `npm ci` в [../frontend](../frontend);
-- зависимости и браузер здесь: `npm ci && npx playwright install chromium`.
+- зависимости и браузер здесь: `npm ci && npx playwright install chromium`
+  (на Linux-раннере браузеру нужны системные библиотеки:
+  `npx playwright install --with-deps chromium`).
 
 ## Запуск
 
@@ -22,6 +24,11 @@ npm run report    # отчёт последнего прогона
 фронтенда на `http://localhost:4173`. Фронтенд собирается с
 `VITE_API_BASE_URL=http://localhost:3000/api`, файл `frontend/.env` при этом не
 трогается. Если серверы уже запущены вручную, они переиспользуются — кроме CI.
+
+Отсюда ловушка: если на 4173 уже висит `vite preview` от обычного
+`npm run build`, эта сборка смотрит в адрес из `frontend/.env` (обычно
+Prism-мок на `:4010`), Playwright переиспользует её, и все тесты падают на
+непонятных ошибках API — в таком случае остановите старый `preview`.
 
 ## Как устроены тесты
 

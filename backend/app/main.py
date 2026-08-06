@@ -1,5 +1,6 @@
 """Сборка приложения FastAPI."""
 
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI
@@ -8,6 +9,7 @@ from fastapi.openapi.utils import get_openapi
 
 from app import api, config
 from app.errors import register_error_handlers
+from app.spa import mount_spa
 
 STOCK_VALIDATION_ERROR_REF = "#/components/schemas/HTTPValidationError"
 """Сток-схема FastAPI для 422. Сервер её не отдаёт: RequestValidationError
@@ -38,8 +40,12 @@ def _without_stock_validation_error(schema: dict[str, Any]) -> dict[str, Any]:
     return schema
 
 
-def create_app() -> FastAPI:
-    """Собрать приложение. Отдельная функция — чтобы тесты брали чистый экземпляр."""
+def create_app(static_dir: Path | None = None) -> FastAPI:
+    """Собрать приложение. Отдельная функция — чтобы тесты брали чистый экземпляр.
+
+    `static_dir` переопределяет каталог со сборкой фронтенда; по умолчанию
+    берётся `config.STATIC_DIR`.
+    """
     app = FastAPI(
         title="Booking Calendar API",
         description="HTTP API календаря бронирования. Хранилище в памяти.",
@@ -52,6 +58,9 @@ def create_app() -> FastAPI:
     )
     register_error_handlers(app)
     app.include_router(api.router)
+    # После роутеров: Starlette подбирает маршруты в порядке регистрации,
+    # и монтирование в корень иначе перехватило бы /api, /docs и /openapi.json.
+    mount_spa(app, config.STATIC_DIR if static_dir is None else static_dir)
 
     def custom_openapi() -> dict[str, Any]:
         if app.openapi_schema is None:

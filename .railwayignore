@@ -1,0 +1,21 @@
+# Что не нужно загружать в Railway при `railway up`: зеркалит .dockerignore,
+# иначе в загрузку попадают node_modules и venv (сотни мегабайт).
+.git
+.github
+.claude
+.agents
+.superpowers
+.vscode
+node_modules
+frontend/node_modules
+frontend/dist
+frontend/.env
+backend/.venv
+backend/static
+e2e/node_modules
+e2e/test-results
+e2e/playwright-report
+spec/node_modules
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache

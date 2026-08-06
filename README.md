@@ -4,6 +4,17 @@
 ### CI:
 [![CI](https://github.com/Mikhail-Hursky/ai-for-developers-project-386/actions/workflows/ci.yml/badge.svg)](https://github.com/Mikhail-Hursky/ai-for-developers-project-386/actions/workflows/ci.yml)
 
+## Опубликованное приложение
+
+https://ai-for-developers-project-386-production-cb02.up.railway.app/
+
+Развёрнуто на Railway из [Dockerfile](Dockerfile): один сервис отдаёт и
+интерфейс, и API (`/api/...`, документация — на `/docs`). Порт приложение берёт
+из `PORT`, который задаёт платформа.
+
+Хранилище в памяти, поэтому после каждого передеплоя типы встреч и брони нужно
+заводить заново — начните с админки на `/admin`.
+
 ## Состав проекта
 
 - [spec/](spec/) — контракт API на TypeSpec и Prism-мок;

@@ -2,7 +2,7 @@
 
 Проверяют путь «владелец создал тип встречи → гость записался → бронь видна
 в админке» в настоящем браузере против настоящего бэкенда.
-Дизайн: [docs/superpowers/specs/2026-08-06-e2e-playwright-design.md](../docs/superpowers/specs/2026-08-06-e2e-playwright-design.md).
+Дизайн: [проектный документ](../docs/superpowers/specs/2026-08-06-e2e-playwright-design.md).
 
 ## Что нужно на машине
 

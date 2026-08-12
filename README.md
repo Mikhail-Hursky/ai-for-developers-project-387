@@ -1,14 +1,14 @@
 ### Hexlet tests and linter status:
 
-[![Actions Status](https://github.com/Mikhail-Hursky/ai-for-developers-project-386/actions/workflows/hexlet-check.yml/badge.svg)](https://github.com/Mikhail-Hursky/ai-for-developers-project-386/actions)
+[![Actions Status](https://github.com/Mikhail-Hursky/ai-for-developers-project-387/actions/workflows/hexlet-check.yml/badge.svg)](https://github.com/Mikhail-Hursky/ai-for-developers-project-387/actions)
 
 ### CI:
 
-[![CI](https://github.com/Mikhail-Hursky/ai-for-developers-project-386/actions/workflows/ci.yml/badge.svg)](https://github.com/Mikhail-Hursky/ai-for-developers-project-386/actions/workflows/ci.yml)
+[![CI](https://github.com/Mikhail-Hursky/ai-for-developers-project-387/actions/workflows/ci.yml/badge.svg)](https://github.com/Mikhail-Hursky/ai-for-developers-project-387/actions/workflows/ci.yml)
 
 ## Опубликованное приложение
 
-https://ai-for-developers-project-386-production-cb02.up.railway.app/
+https://ai-for-developers-project-387-production-12f5.up.railway.app/
 
 Развёрнуто на Railway из [Dockerfile](Dockerfile): один сервис отдаёт и
 интерфейс, и API (`/api/...`, документация — на `/docs`). Порт приложение берёт

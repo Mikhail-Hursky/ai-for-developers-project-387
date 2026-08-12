@@ -34,7 +34,7 @@ jobs:
           # По умолчанию action ищет commitlint.config.mjs и, не найдя его,
           # молча берёт голый config-conventional — наш файл нужно указать явно.
           configFile: .commitlintrc.yml
-          helpURL: https://github.com/Mikhail-Hursky/ai-for-developers-project-386/blob/main/CONTRIBUTING.md
+          helpURL: https://github.com/Mikhail-Hursky/ai-for-developers-project-387/blob/main/CONTRIBUTING.md
 
   spec:
     name: spec (TypeSpec + Prism)

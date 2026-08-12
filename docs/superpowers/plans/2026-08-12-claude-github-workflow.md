@@ -234,9 +234,20 @@ Expected: раздел на месте, оба файла из относите�
 
 - [ ] **Step 4: Проверить длину строк**
 
-Run: `awk 'length > 100 {print FILENAME":"FNR": "length}' CONTRIBUTING.md`
+Run:
+
+```bash
+python3 -c "
+for n, l in enumerate(open('CONTRIBUTING.md', encoding='utf-8'), 1):
+    if len(l.rstrip('\n')) > 100: print(n, len(l.rstrip('\n')))
+"
+```
 
 Expected: пустой вывод.
+
+Считать длину нужно в символах, а не в байтах: `awk 'length > 100'` и `wc -L`
+меряют байты, а кириллица в UTF-8 занимает два байта на букву — на русском
+тексте они покажут почти каждую строку файла.
 
 - [ ] **Step 5: Коммит**
 

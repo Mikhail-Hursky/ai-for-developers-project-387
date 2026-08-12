@@ -1,11 +1,9 @@
 ### Hexlet tests and linter status:
-<<<<<<< HEAD
-[![Actions Status](https://github.com/Mikhail-Hursky/ai-for-developers-project-387/actions/workflows/hexlet-check.yml/badge.svg)](https://github.com/Mikhail-Hursky/ai-for-developers-project-387/actions)
-||||||| empty tree
-=======
+
 [![Actions Status](https://github.com/Mikhail-Hursky/ai-for-developers-project-386/actions/workflows/hexlet-check.yml/badge.svg)](https://github.com/Mikhail-Hursky/ai-for-developers-project-386/actions)
 
 ### CI:
+
 [![CI](https://github.com/Mikhail-Hursky/ai-for-developers-project-386/actions/workflows/ci.yml/badge.svg)](https://github.com/Mikhail-Hursky/ai-for-developers-project-386/actions/workflows/ci.yml)
 
 ## Опубликованное приложение
@@ -55,4 +53,3 @@ docker run --rm -e PORT=8080 -p 8080:8080 booking-calendar
 на каждый пуш и pull request прогоняются линтеры и тесты всех четырёх пакетов,
 версию и `CHANGELOG.md` ведёт
 [release-please](https://github.com/googleapis/release-please).
->>>>>>> other/main

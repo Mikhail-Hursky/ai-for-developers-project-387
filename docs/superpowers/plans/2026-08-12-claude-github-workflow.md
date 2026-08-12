@@ -408,7 +408,10 @@ gh issue comment <номер> --repo Mikhail-Hursky/ai-for-developers-project-38
 gh run list --repo Mikhail-Hursky/ai-for-developers-project-387 --workflow=claude.yml --limit 5
 ```
 
-Expected: новых прогонов не появилось — гейт в `if:` работает.
+Expected: появилась новая запись с `conclusion: skipped` — гейт в `if:` работает.
+Условие стоит на уровне job'а, поэтому событие всегда создаёт запись о прогоне;
+пропуск job'а означает, что раннер не поднялся и токены не потрачены. Проверить
+точнее: `gh run view <id> --json conclusion,jobs`.
 
 - [ ] **Step 10: Живая проверка в PR**
 

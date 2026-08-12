@@ -1,0 +1,59 @@
+name: claude
+
+# Claude отвечает в обсуждении, когда его позвали: @claude в комментарии.
+# Три события покрывают три места, где можно написать комментарий: тред issue
+# и обсуждение PR (оба — issue_comment), комментарий к строке диффа и тело
+# ревью.
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  pull_request_review:
+    types: [submitted]
+
+# Пока один комментарий обрабатывается, следующий по тому же обсуждению ждёт
+# очереди — иначе два ответа перемешаются в одном треде. Отменять начатый
+# прогон нельзя: он уже пишет комментарий. Номера issue и PR в репозитории
+# из одной последовательности, так что группы не пересекаются.
+concurrency:
+  group: claude-${{ github.event.issue.number || github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  claude:
+    name: claude
+    # Автор должен быть владельцем репозитория: чужой @claude не поднимает job
+    # вообще. Логин и текст лежат в разных полях — в comment у комментариев,
+    # в review у тела ревью, поэтому оба берутся через ||. Проверка на
+    # триггер-фразу здесь — чтобы не тратить раннер на каждый комментарий;
+    # сам action её всё равно перепроверит.
+    if: >-
+      (github.event.comment.user.login || github.event.review.user.login)
+        == github.repository_owner
+      && contains(github.event.comment.body || github.event.review.body, '@claude')
+    runs-on: ubuntu-latest
+    permissions:
+      # Только чтение: правок и веток на этом этапе не делаем.
+      contents: read
+      # Ответ в треде issue или в обсуждении PR и служебный комментарий
+      # с прогрессом.
+      issues: write
+      # Ответы на комментарии к строкам диффа.
+      pull-requests: write
+      # OIDC-токен: по нему action ходит в GitHub от имени claude[bot].
+      id-token: write
+      # Чтение прогонов и логов CI — см. additional_permissions ниже.
+      actions: read
+    steps:
+      # Без клона Claude не увидит ни код, ни CLAUDE.md с правилами репозитория.
+      # Ветку PR action доберёт сам: для открытого PR он делает
+      # `git fetch origin pull/<номер>/head` и переключается на неё.
+      - uses: actions/checkout@v7
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Без этого Claude не видит результаты прогонов, даже когда права
+          # actions: read выданы job'у.
+          additional_permissions: |
+            actions: read

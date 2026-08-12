@@ -1,0 +1,20 @@
+{
+  "name": "booking-calendar-api-spec",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TypeSpec-описание HTTP API календаря бронирования",
+  "scripts": {
+    "build": "tsp compile .",
+    "watch": "tsp compile . --watch",
+    "mock:spec": "npm run build && node scripts/build-mock-spec.mjs",
+    "mock": "npm run mock:spec && prism mock openapi/openapi.mock.yaml --port 4010 --errors",
+    "mock:check": "npm run mock:spec && node scripts/check-mock.mjs"
+  },
+  "devDependencies": {
+    "@stoplight/prism-cli": "^5.14.2",
+    "@typespec/compiler": "latest",
+    "@typespec/http": "latest",
+    "@typespec/openapi3": "latest",
+    "yaml": "^2.9.0"
+  }
+}

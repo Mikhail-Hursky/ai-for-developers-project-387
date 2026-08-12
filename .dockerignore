@@ -1,0 +1,21 @@
+# В контекст сборки попадают только frontend/ (без артефактов и .env),
+# backend/app и манифесты зависимостей.
+.git
+.github
+.claude
+.agents
+.superpowers
+.vscode
+node_modules
+frontend/node_modules
+frontend/dist
+frontend/.env
+backend/.venv
+backend/static
+backend/tests
+e2e
+spec
+docs
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache

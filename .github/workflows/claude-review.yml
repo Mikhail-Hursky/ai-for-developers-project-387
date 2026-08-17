@@ -1,0 +1,87 @@
+name: claude-review
+
+# Claude ревьюит pull request: когда его открыли или перевели из черновика.
+# Единственный из трёх claude-воркфлоу, который срабатывает сам, без обращения:
+# «@claude» обслуживает claude.yml, «@claude implement» — claude-implement.yml.
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review]
+
+# Ревью пишет комментарии, поэтому начатый прогон не отменяем. Группа по номеру
+# PR: два события подряд — открыли черновиком, тут же отметили готовым — не
+# должны дать два ревью одновременно.
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  claude-review:
+    name: claude-review
+    # Только PR из этого репозитория. На событии pull_request из форка GitHub не
+    # отдаёт секреты, так что CLAUDE_CODE_OAUTH_TOKEN был бы пустым и прогон упал
+    # бы на авторизации. Это же условие работает как авторизация: ветку в нашем
+    # репозитории создаёт только тот, у кого есть доступ на запись, поэтому
+    # отдельной проверки на владельца здесь нет.
+    # Черновики пропускаем: автор ещё не позвал никого смотреть. Момент, когда
+    # позвал, ловит тип ready_for_review.
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository
+      && !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Построчные замечания и сводный комментарий.
+      pull-requests: write
+      # OIDC-токен: по нему action ходит в GitHub от имени claude[bot].
+      id-token: write
+    steps:
+      # На событии pull_request actions/checkout выкладывает результат слияния
+      # ветки с базой — ревьюится то, что получится после мержа.
+      - uses: actions/checkout@v7
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # PR, которые Claude открыл сам по «@claude implement», ревьюить нужнее
+          # всего. Без этой строки они не ревьюились бы вовсе: checkHumanActor
+          # отклоняет любого актора-бота. Суффикс [bot] в списке отрезается,
+          # поэтому здесь просто «claude».
+          allowed_bots: claude
+          # prompt без track_progress оставляет action в agent mode: ни ветки,
+          # ни служебного комментария с прогрессом здесь не нужно — ревью и так
+          # заканчивается комментариями в самом PR.
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+
+            Отревьюй этот pull request. Ветка уже выкачана в рабочий каталог.
+            Правила репозитория — в CLAUDE.md и CONTRIBUTING.md.
+
+            Смотри в первую очередь на:
+            - контракт: spec/main.tsp и собранный spec/openapi/openapi.yaml
+              должны совпадать, а backend/ и frontend/ — соответствовать
+              контракту;
+            - ошибки и краевые случаи в логике;
+            - тесты: покрыто ли изменение и не подогнан ли тест под реализацию;
+            - расхождения с правилами из CLAUDE.md и CONTRIBUTING.md.
+
+            Не делай этого:
+            - не пересказывай дифф и не хвали код — пиши только то, что стоит
+              исправить;
+            - не трогай стиль, который уже проверяют ruff и ESLint;
+            - не пытайся запускать тесты и линтеры: их гоняет ci.yml, а
+              инструментов для этого у тебя здесь нет.
+
+            Как оформить:
+            - построчные замечания — mcp__github_inline_comment__create_inline_comment
+              с confirmed: true;
+            - сводный комментарий — gh pr comment: что нашёл и что из этого
+              критично;
+            - если замечаний нет, так и напиши одной строкой в сводном
+              комментарии;
+            - ревью существует только в виде комментариев GitHub, в тексте
+              ответа его не дублируй.
+          # Read, Grep и Glob перечислены явно: в agent mode дефолтного набора
+          # инструментов нет, полагаться на неявные дефолты CLI не хочется.
+          # Ни Edit, ни npm, ни uv — ревьюер не правит код и не гоняет тесты.
+          claude_args: >-
+            --allowedTools "Read,Grep,Glob,mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"

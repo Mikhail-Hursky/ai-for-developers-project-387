@@ -60,11 +60,15 @@ const night = new Intl.DateTimeFormat('ru-RU', {
 const rows = [];
 const metricLines = [];
 const failures = [];
-let runs = 0;
+// Число прогонов держим по каждой странице отдельно: если у одной страницы
+// прогон не отработал и файла меньше, чем у другой, общая цифра выглядела бы
+// правдоподобно, но врала бы про меньшую из двух — такое расхождение важно
+// показать явно, а не скрыть за одним числом.
+const pageRuns = [];
 
 for (const page of PAGES) {
   const median = medianReport(page.slug);
-  runs = median.runs;
+  pageRuns.push({ path: page.path, runs: median.runs });
   const scores = CATEGORIES.map(([id]) => score(median.report, id));
   CATEGORIES.forEach(([id, label], index) => {
     if (scores[index] < thresholds[id]) {
@@ -80,6 +84,13 @@ for (const page of PAGES) {
 
 const limits = CATEGORIES.map(([id, label]) => `${label} ${thresholds[id]}`).join(', ');
 
+// Пока число прогонов у всех страниц одинаковое, короткая общая формулировка
+// точна и её незачем усложнять; расхождение показываем только когда оно есть.
+const runsMatch = pageRuns.every((page) => page.runs === pageRuns[0].runs);
+const runsLine = runsMatch
+  ? `Медиана ${pageRuns[0].runs} прогонов.`
+  : `Медиана прогонов: ${pageRuns.map((page) => `\`${page.path}\` — ${page.runs}`).join(', ')}.`;
+
 const summary = [
   `# Lighthouse — ночь на ${night}`,
   '',
@@ -89,7 +100,7 @@ const summary = [
   '',
   ...metricLines,
   '',
-  `Медиана ${runs} прогонов. Пороги: ${limits}. deltaDrop: ${thresholds.deltaDrop}.`,
+  `${runsLine} Пороги: ${limits}. deltaDrop: ${thresholds.deltaDrop}.`,
   '',
   failures.length ? 'Ниже порога:' : 'Все категории выше порогов.',
   ...failures,

@@ -1,0 +1,89 @@
+name: lighthouse
+
+# Ночной аудит опубликованного приложения. Проверяется прод, а не сборка в
+# раннере: половина того, что видит пользователь, добавляется доставкой —
+# сжатие, заголовки кэширования, отдача статики из FastAPI, задержки платформы.
+on:
+  schedule:
+    # 23:00 UTC — 02:00 по Минску. Отчёт готов задолго до начала рабочего дня,
+    # а очереди на публичных раннерах в этот час короче, чем в полночь UTC.
+    - cron: '0 23 * * *'
+  # Прогнать руками, не дожидаясь ночи: этим же проверяются правки воркфлоу.
+  workflow_dispatch:
+
+# Прогон пишет комментарий в issue, поэтому начатый не отменяем. Группа одна на
+# весь репозиторий: параллельных ночных прогонов быть не должно.
+concurrency:
+  group: lighthouse
+  cancel-in-progress: false
+
+permissions:
+  # checkout: без кода агент не скажет, в каком файле причина просадки.
+  contents: read
+  # Комментарий в долгоживущий issue и заведение лейбла.
+  issues: write
+  # OIDC-токен: по нему action ходит в GitHub от имени claude[bot].
+  id-token: write
+
+env:
+  # Адрес задан один раз: при передеплое сервиса меняется одна строка.
+  BASE_URL: https://ai-for-developers-project-387-production-12f5.up.railway.app
+
+jobs:
+  lighthouse:
+    name: lighthouse
+    runs-on: ubuntu-latest
+    # Шесть прогонов Lighthouse плюс работа агента; за 20 минут укладывается с
+    # запасом, а зависший прогон не должен занимать раннер до часового дефолта.
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          # Кэш не настраиваем: lock-файла у `npx lighthouse` нет, а версия
+          # пакета зафиксирована прямо в команде.
+      # Railway усыпляет контейнер, и первый замер иначе показал бы холодный
+      # старт вместо реальной картины.
+      - name: Прогреть приложение
+        run: |
+          curl --fail --silent --show-error --retry 5 --retry-all-errors \
+            --retry-delay 10 --output /dev/null "$BASE_URL/"
+      # Версия зафиксирована намеренно: `latest` однажды приедет с новым мажором
+      # и другой методикой подсчёта, и вся история дельт в issue обесценится.
+      # --no-sandbox обязателен: под пользователем раннера песочница Chrome не
+      # поднимается. Chrome на ubuntu-latest предустановлен.
+      - name: Прогнать Lighthouse
+        run: |
+          mkdir -p lighthouse-report
+          for page in "home:/" "admin:/admin"; do
+            slug="${page%%:*}"
+            path="${page#*:}"
+            for i in 1 2 3; do
+              npx --yes lighthouse@13.4.1 "$BASE_URL$path" \
+                --output=json --output=html \
+                --output-path="lighthouse-report/$slug-$i" \
+                --chrome-flags="--headless=new --no-sandbox" \
+                --quiet
+            done
+          done
+      - name: Собрать сводку
+        run: node .github/scripts/lighthouse-summary.mjs
+      # Проверка на существование файла: когда падает скрипт сводки, job уже
+      # красный, и второй красный шаг подряд только запутывает.
+      - name: Показать сводку в прогоне
+        if: always()
+        run: |
+          if [ -f lighthouse-report/summary.md ]; then
+            cat lighthouse-report/summary.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+      # Артефакт заливается всегда: если упадёт агент, ночные цифры не должны
+      # пропасть вместе с ним. HTML-отчёты — то, куда из комментария идут за
+      # подробностями.
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: lighthouse-report
+          path: lighthouse-report
+          if-no-files-found: warn
+          retention-days: 30

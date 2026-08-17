@@ -1,0 +1,116 @@
+name: claude-implement
+
+# Claude делает правку и открывает pull request, когда его позвали командой
+# «@claude implement» в комментарии. Обычный «@claude» обслуживает claude.yml,
+# где прав на запись нет. События у двух воркфлоу одинаковые — расходятся они
+# только условием в if, поэтому в claude.yml стоит исключение на эту команду.
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  pull_request_review:
+    types: [submitted]
+
+# Группа своя, а не общая с claude.yml: реализация идёт минуты, и вопрос в треде
+# не должен ждать её в очереди. Внутри группы прогоны выстраиваются друг за
+# другом — два параллельных пуша в одну ветку перезаписали бы работу. Отменять
+# начатый прогон нельзя: он уже коммитит.
+concurrency:
+  group: claude-implement-${{ github.event.issue.number || github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  claude-implement:
+    name: claude-implement
+    # Условие то же, что в claude.yml, только фраза длиннее. Логин и текст лежат
+    # в разных полях — в comment у комментариев, в review у тела ревью, поэтому
+    # оба берутся через ||. Скобки вокруг первого || обязательны: в выражениях
+    # GitHub == связывает сильнее.
+    if: >-
+      (github.event.comment.user.login || github.event.review.user.login)
+        == github.repository_owner
+      && contains(github.event.comment.body || github.event.review.body, '@claude implement')
+    runs-on: ubuntu-latest
+    permissions:
+      # Ветка и коммиты — этим job отличается от claude.yml.
+      contents: write
+      # Комментарий с прогрессом и ответ в треде issue или в обсуждении PR.
+      issues: write
+      # Ответы на комментарии к строкам диффа и создание pull request.
+      pull-requests: write
+      # OIDC-токен: по нему action ходит в GitHub от имени claude[bot].
+      id-token: write
+      # Чтение прогонов и логов CI — см. additional_permissions ниже.
+      actions: read
+    steps:
+      # Без клона Claude не увидит ни код, ни CLAUDE.md с правилами репозитория.
+      # Ветку открытого PR action доберёт сам, для issue — создаст свою.
+      - uses: actions/checkout@v7
+      # Node и uv нужны, чтобы Claude прогнал проверки затронутого пакета.
+      # Зависимости заранее не ставим: какой пакет задет, известно только ему,
+      # а npm ci и uv sync он сделает сам по прогретому кэшу.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          # e2e в этом прогоне не запускаются, их зависимости кэшировать незачем.
+          cache-dependency-path: |
+            spec/package-lock.json
+            frontend/package-lock.json
+      - uses: astral-sh/setup-uv@v9.0.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          trigger_phrase: '@claude implement'
+          # Включает tag mode: action сам создаёт ветку, ведёт комментарий с
+          # прогрессом и собирает контекст треда, а prompt ниже подмешивается
+          # к его инструкции как дополнение. Без track_progress заданный prompt
+          # переключил бы action в agent mode, где ни ветки, ни комментария нет.
+          track_progress: true
+          # Порядок шагов и создание PR — всё, чего нет в правилах репозитория.
+          # Остальное Claude читает из CLAUDE.md сам.
+          prompt: |
+            Тебя позвали командой «@claude implement»: нужно не рассуждать,
+            а сделать правку и оформить её. Задача — в этом обсуждении: тело
+            issue или PR и комментарии, включая тот, в котором тебя позвали.
+            Правила репозитория — в CLAUDE.md и CONTRIBUTING.md.
+
+            1. Если задачу можно понять двояко или она требует решения за
+               владельца репозитория — ничего не коммить. Напиши, что нужно
+               уточнить, и закончи.
+            2. Сделай изменение. Если правил spec/main.tsp — пересобери
+               spec/openapi/openapi.yaml (`npm run build` в spec/), иначе
+               job `spec` в CI упадёт.
+            3. Прогони проверки затронутых пакетов и покажи их вывод:
+               spec     — npm run mock:check
+               frontend — npm run lint && npm test && npm run build
+               backend  — uv run ruff check . && uv run ruff format --check . && uv run pytest
+               e2e не запускай: браузеров на раннере нет, их прогонит CI на
+               самом PR. Проверки должны быть зелёными. Если починить не
+               удалось — PR не открывай, опиши, что упало.
+            4. Закоммить по CONTRIBUTING.md: Conventional Commits, заголовок
+               на английском, тело — список «что изменилось и почему», трейлер
+               Co-Authored-By.
+            5. Если тебя позвали в issue — запушь ветку и открой pull request:
+               gh pr create --title "<заголовок по Conventional Commits>" --body "<...>"
+               В теле — что сделано и почему, и строка «Closes #<номер issue>».
+               Если тебя позвали в открытом PR — новый PR не создавай: коммиты
+               уже ушли в его ветку.
+            6. В финальном комментарии дай ссылку на PR (или на коммит) и вывод
+               проверок.
+          # Edit и Write не перечисляем намеренно: tag mode работает в
+          # --permission-mode acceptEdits, где правки внутри workspace уже
+          # разрешены, а за его пределами запрещены. Явное упоминание сделало бы
+          # запись неограниченной по всему раннеру. git add, git commit, git rm и
+          # обёртку для git push tag mode добавляет сам, здесь — только читающие
+          # команды, по которым Claude напишет тело PR.
+          claude_args: >-
+            --allowedTools "Bash(npm:*),Bash(uv:*),Bash(gh pr create:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*)"
+          # Без этого Claude не видит результаты прогонов, даже когда права
+          # actions: read выданы job'у.
+          additional_permissions: |
+            actions: read

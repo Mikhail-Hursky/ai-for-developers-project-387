@@ -3,7 +3,8 @@ name: claude
 # Claude отвечает в обсуждении, когда его позвали: @claude в комментарии.
 # Три события покрывают три места, где можно написать комментарий: тред issue
 # и обсуждение PR (оба — issue_comment), комментарий к строке диффа и тело
-# ревью.
+# ревью. Команда «@claude implement» — не сюда, её обслуживает
+# claude-implement.yml.
 on:
   issue_comment:
     types: [created]
@@ -27,11 +28,14 @@ jobs:
     # вообще. Логин и текст лежат в разных полях — в comment у комментариев,
     # в review у тела ревью, поэтому оба берутся через ||. Проверка на
     # триггер-фразу здесь — чтобы не тратить раннер на каждый комментарий;
-    # сам action её всё равно перепроверит.
+    # сам action её всё равно перепроверит. Последняя строка разводит два
+    # воркфлоу: «@claude implement» содержит и «@claude», так что без неё на
+    # такой комментарий поднялись бы оба разом.
     if: >-
       (github.event.comment.user.login || github.event.review.user.login)
         == github.repository_owner
       && contains(github.event.comment.body || github.event.review.body, '@claude')
+      && !contains(github.event.comment.body || github.event.review.body, '@claude implement')
     runs-on: ubuntu-latest
     permissions:
       # Только чтение: правок и веток на этом этапе не делаем.

@@ -28,9 +28,14 @@ const METRICS = [
   ['cumulative-layout-shift', 'CLS'],
 ];
 
-// Сколько проваленных аудитов показывать на страницу: достаточно, чтобы дать
-// разбору зацепки, но не превратить сводку в очередной сырой отчёт.
-const MAX_FAILED_AUDITS_PER_PAGE = 6;
+// Квота проваленных аудитов НА КАТЕГОРИЮ, а не на страницу целиком: у весов
+// перфоманса (TBT 30, LCP 25, CLS 25) порядок на пару десятков больше, чем у
+// SEO (почти все аудиты весом 1). Общий срез по влиянию через все категории
+// заполнили бы одни только перфомансные аудиты, и вторая просевшая категория
+// осталась бы в сводке ни с чем — а промпт требует назвать конкретный аудит
+// и запрещает лезть за ним в сырой отчёт. Квота на категорию гарантирует, что
+// у каждой рассматриваемой категории будет что показать.
+const AUDITS_PER_CATEGORY = 3;
 
 const thresholds = JSON.parse(readFileSync(THRESHOLDS_PATH, 'utf8'));
 
@@ -69,42 +74,58 @@ function medianReport(slug) {
   return { report: reports[Math.floor(reports.length / 2)], runs: reports.length };
 }
 
-// «Проблемные категории» — те, что ниже порога: агент разбирает именно их. Если
-// в эту ночь все категории выше порога (жёлтый вердикт целиком из-за deltaDrop),
-// берём категорию с худшим баллом — иначе даже на жёлтую ночь агенту не на что
-// опереться при разборе.
-function problemCategories(scores) {
+// Категории, которые стоит разобрать. Ниже порога есть кому-то — берём только
+// их: это те категории, из-за которых ночь красная, и агент должен объяснить
+// именно их просадку.
+//
+// Если ниже порога нет никого (verdict: green, но 🟡 из-за deltaDrop — сам
+// скрипт дельту к прошлой ночи не считает, это делает агент по треду issue),
+// заранее не угадать, какая именно категория просела: раньше здесь бралась
+// категория с худшим абсолютным баллом, и список аудитов у неё был один на
+// всю страницу — при этом просесть могла совсем другая категория, и агент
+// не находил её причину нигде, кроме сырого отчёта, который ему запрещено
+// читать. Поэтому на 🟡 отдаём аудиты по всем категориям сразу — с той же
+// квотой на категорию, что и ниже, — а агент сам сузит до просевшей,
+// сравнив со прошлым комментарием. Категории без единого проваленного
+// аудита ничего не добавят в список, так что раздувается сводка не
+// сильнее, чем реальных проблем на странице.
+function relevantCategories(scores) {
   const below = CATEGORIES.filter((_, index) => scores[index] < thresholds[CATEGORIES[index][0]]);
-  if (below.length > 0) return below;
-  const worstIndex = scores.reduce((best, value, index) => (value < scores[best] ? index : best), 0);
-  return [CATEGORIES[worstIndex]];
+  return below.length > 0 ? below : CATEGORIES;
 }
 
-// Компактный список проваленных аудитов для страницы: аудиты с ненулевым весом
-// в проблемных категориях, чей score < 1, отсортированные по влиянию на балл
-// категории (weight * (1 - score)) — так первыми идут аудиты, которые реально
-// тянут балл вниз, а не мелкие придирки с большим весом, но баллом 0.99.
+// Компактный список проваленных аудитов для страницы: по каждой рассматриваемой
+// категории — свои до AUDITS_PER_CATEGORY аудитов с ненулевым весом и
+// score < 1, отсортированные по влиянию на балл категории (weight * (1 -
+// score)) — так первыми идут аудиты, которые реально тянут балл вниз, а не
+// мелкие придирки с большим весом, но баллом 0.99. Квота на категорию (а не
+// общий срез по всей странице) не даёт категориям с тяжёлыми аудитами
+// (перфоманс) вытеснить категории с лёгкими (SEO) из списка.
 function failedAudits(report, categories) {
   const seen = new Set();
   const items = [];
-  for (const [id] of categories) {
+  for (const [id, label] of categories) {
     const auditRefs = report.categories[id]?.auditRefs ?? [];
+    const candidates = [];
     for (const ref of auditRefs) {
       if (!ref.weight || seen.has(ref.id)) continue;
       const audit = report.audits[ref.id];
       if (!audit || audit.score === null || audit.score === undefined || audit.score >= 1) continue;
-      seen.add(ref.id);
-      items.push({
+      candidates.push({
         id: ref.id,
+        category: label,
         title: audit.title,
         score: audit.score,
         displayValue: audit.displayValue,
         influence: ref.weight * (1 - audit.score),
       });
     }
+    candidates.sort((a, b) => b.influence - a.influence);
+    const picked = candidates.slice(0, AUDITS_PER_CATEGORY);
+    picked.forEach((item) => seen.add(item.id));
+    items.push(...picked);
   }
-  items.sort((a, b) => b.influence - a.influence);
-  return items.slice(0, MAX_FAILED_AUDITS_PER_PAGE);
+  return items;
 }
 
 // Прогон стартует в 23:00 UTC, то есть по Минску это уже следующие сутки —
@@ -140,12 +161,15 @@ for (const page of PAGES) {
   const values = METRICS.map(([id, label]) => `${label} ${median.report.audits?.[id]?.displayValue ?? '—'}`);
   metricLines.push(`- \`${page.path}\` — ${values.join(' · ')}`);
 
-  const audits = failedAudits(median.report, problemCategories(scores));
+  const audits = failedAudits(median.report, relevantCategories(scores));
   if (audits.length > 0) {
     auditLines.push(`- \`${page.path}\`:`);
     for (const audit of audits) {
+      // Категория в конце строки: на 🟡, где аудиты идут сразу по всем
+      // категориям, иначе не понять, к какому баллу в таблице относится аудит.
       const parts = [`\`${audit.id}\``, audit.title, `score ${Math.round(audit.score * 100)}`];
       if (audit.displayValue) parts.push(audit.displayValue);
+      parts.push(`категория: ${audit.category}`);
       auditLines.push(`  - ${parts.join(' — ')}`);
     }
   }

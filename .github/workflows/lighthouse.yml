@@ -60,11 +60,21 @@ jobs:
             slug="${page%%:*}"
             path="${page#*:}"
             for i in 1 2 3; do
-              npx --yes lighthouse@13.4.1 "$BASE_URL$path" \
+              # `run:` выполняется как `bash -e`, но сбой одного прогона — сеть,
+              # холодный рендер, разовый таймаут Chrome — не повод терять
+              # оставшиеся пять: `if !` держит команду вне действия `-e`, а
+              # медиану по странице скрипт сводки посчитает и по двум отчётам
+              # из трёх. Полное отсутствие отчётов у страницы — это уже не шум,
+              # и такое молча не проглатывается: `lighthouse-summary.mjs` сам
+              # бросит ошибку «Нет отчётов для страницы ...», и job станет
+              # красным.
+              if ! npx --yes lighthouse@13.4.1 "$BASE_URL$path" \
                 --output=json --output=html \
                 --output-path="lighthouse-report/$slug-$i" \
                 --chrome-flags="--headless=new --no-sandbox" \
-                --quiet
+                --quiet; then
+                echo "::warning::Lighthouse не смог снять $slug (прогон $i, $BASE_URL$path)"
+              fi
             done
           done
       - name: Собрать сводку

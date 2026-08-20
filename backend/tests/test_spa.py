@@ -66,3 +66,27 @@ def test_no_mount_without_directory(tmp_path: Path):
     """Без сборки фронтенда приложение поднимается как раньше."""
     with TestClient(create_app(static_dir=tmp_path / "missing")) as client:
         assert client.get("/admin").status_code == 404
+
+
+def test_unknown_api_path_returns_json_404(spa_client: TestClient):
+    """An unknown route under /api is a backend error, not an SPA route."""
+    response = spa_client.get("/api/no-such-route")
+
+    assert response.status_code == 404
+    assert response.headers["content-type"].startswith("application/json")
+
+
+def test_malformed_percent_encoding_under_api_returns_json_404(spa_client: TestClient):
+    """Malformed percent-encoding under /api must not fall back to index.html."""
+    response = spa_client.get("/api/%bad-encoding")
+
+    assert response.status_code == 404
+    assert response.headers["content-type"].startswith("application/json")
+
+
+def test_unknown_client_route_still_falls_back_to_index(spa_client: TestClient):
+    """Paths outside the reserved backend prefixes remain SPA routes."""
+    response = spa_client.get("/no-such-client-route")
+
+    assert response.status_code == 200
+    assert response.text == INDEX_HTML

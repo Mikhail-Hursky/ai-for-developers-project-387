@@ -9,13 +9,13 @@ from starlette.staticfiles import StaticFiles
 from starlette.types import Scope
 
 RESERVED_PREFIXES = frozenset({"api", "docs", "redoc", "openapi.json"})
-"""Первый сегмент пути, который принадлежит backend, а не SPA.
+"""The first path segment that belongs to the backend, not the SPA.
 
-Ручки контракта и служебные маршруты FastAPI регистрируются раньше mount'а
-SPA и перехватывают совпадающие пути сами (см. `create_app`). Сюда
-попадают только те запросы под этими префиксами, что не совпали ни с одной
-такой ручкой, — то есть заведомо невалидные для backend, а не клиентский
-роут фронтенда.
+Contract handlers and FastAPI's own service routes are registered before the
+SPA mount and intercept matching paths themselves (see `create_app`). Only
+requests under these prefixes that didn't match any such handler end up
+here — i.e. requests that are invalid for the backend, not a frontend client
+route.
 """
 
 
@@ -30,10 +30,11 @@ class SPAStaticFiles(StaticFiles):
     нет, но при прямом заходе или обновлении страницы браузер запрашивает
     именно их — без подмены пользователь получил бы 404 вместо приложения.
 
-    Подмена не должна срабатывать для путей, которые по смыслу принадлежат
-    backend (`/api/...`, `/docs`, `/openapi.json` и т.п.): иначе неизвестная
-    API-ручка или путь с битой percent-кодировкой отдаст `200 text/html`
-    вместо `404`, и API-клиент получит страницу приложения там, где ждёт JSON.
+    The substitution must not happen for paths that belong to the backend
+    (`/api/...`, `/docs`, `/openapi.json`, etc.): otherwise an unknown API
+    route or a path with malformed percent-encoding would return
+    `200 text/html` instead of `404`, and an API client would get the app's
+    page where it expects JSON.
     """
 
     async def get_response(self, path: str, scope: Scope) -> Response:
